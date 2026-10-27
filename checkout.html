@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checkout · Decoture</title>
+  <meta name="description" content="Place your Decoture order with cash on delivery.">
+  <meta name="theme-color" content="#1c2321">
+  <link rel="icon" href="assets/img/logo/mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300;1,9..40,400&display=swap">
+  <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body data-page="checkout">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header data-site-header></header>
+
+  <main id="main" tabindex="-1">
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="cart.html">Cart</a><span aria-hidden="true">/</span><span>Checkout</span></nav>
+      <h1 data-split>Checkout</h1>
+      <p>Pay in cash when your chairs arrive. We call to confirm the order and the delivery charge before anything leaves the warehouse.</p>
+    </div>
+    <div class="two-col">
+      <form class="form" data-checkout-form novalidate>
+        <fieldset>
+          <legend>Your details</legend>
+          <div class="form-row">
+            <div class="field-group"><label for="name">Full name</label><input class="input" id="name" name="name" autocomplete="name" required></div>
+            <div class="field-group"><label for="phone">Mobile number</label><input class="input" id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="01XXXXXXXXX" required></div>
+          </div>
+          <div class="field-group"><label for="email">Email <span class="soft">(optional)</span></label><input class="input" id="email" name="email" type="email" autocomplete="email"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Delivery address</legend>
+          <div class="form-row">
+            <div class="field-group"><label for="district">District</label>
+              <select class="input select" id="district" name="district" required>
+                <option value="">Choose a district</option>
+              </select>
+            </div>
+            <div class="field-group"><label for="area">Area or thana</label><input class="input" id="area" name="area" autocomplete="address-level3" placeholder="e.g. Mirpur 10" required></div>
+          </div>
+          <div class="field-group"><label for="address">House, road and floor</label><input class="input" id="address" name="address" autocomplete="street-address" required></div>
+          <div class="field-group"><label for="note">Note for delivery <span class="soft">(optional)</span></label><textarea class="input" id="note" name="note" placeholder="Best time to call, office name, lift access"></textarea></div>
+        </fieldset>
+        <fieldset>
+          <legend>Payment</legend>
+          <div class="radio-cards">
+            <label class="radio-card"><input type="radio" name="payment" value="Cash on delivery" checked><span>Cash on delivery<small>Pay when the chairs arrive.</small></span><span class="tag">Available</span></label>
+            <label class="radio-card"><input type="radio" name="payment" value="bKash / Nagad" disabled><span>bKash, Nagad or card<small>Online payment is coming soon.</small></span><span class="tag">Soon</span></label>
+          </div>
+        </fieldset>
+        <p class="error-text" data-form-error role="alert"></p>
+        <button class="button button--block" type="submit">Place order</button>
+        <p class="small soft">By placing the order you agree that our team may call you to confirm it. Nothing is charged online.</p>
+      </form>
+      <aside class="summary" aria-labelledby="sum-title">
+        <h2 id="sum-title">Your order</h2>
+        <div data-checkout-lines></div>
+        <div data-cart-totals></div>
+      </aside>
+    </div>
+  </main>
+
+  <footer data-site-footer></footer>
+
+  <script src="assets/js/catalog.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/motion.js"></script>
+  <script src="assets/js/checkout.js"></script>
+</body>
+</html>
