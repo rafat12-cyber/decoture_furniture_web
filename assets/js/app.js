@@ -387,6 +387,12 @@
       return lines.join('\n');
     },
   };
+  // Follow an external link from a submit handler (window.open is blocked in some embedded views).
+  const openExternal = (url) => {
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener';
+    document.body.append(a); a.click(); a.remove();
+  };
   const whatsappLink = (text) => `https://wa.me/${CONFIG.whatsapp}?text=${encodeURIComponent(text)}`;
   const mailLink = (subject, body) => `mailto:${CONFIG.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
@@ -401,7 +407,7 @@
   window.Decoture = {
     CONFIG, catalog, products, bySlug, byVariant, cart, orders, FAMILIES, familyOf,
     money, priceLabel, variantPrice, productFromPrice, stockState, productStock, firstImage, productUrl, esc,
-    cardHTML, lineItemsHTML, totalsHTML, bindLineItems, reveal, toast, openDrawer, whatsappLink, mailLink, PLACEHOLDER,
+    cardHTML, lineItemsHTML, totalsHTML, bindLineItems, reveal, toast, openDrawer, openExternal, whatsappLink, mailLink, PLACEHOLDER,
   };
   document.addEventListener('DOMContentLoaded', () => reveal());
 })();

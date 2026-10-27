@@ -1,6 +1,7 @@
 /* Decoture storefront. Brand: Signature Gold, Warm Bronze, Deep Charcoal; DM Sans. */
 
 :root {
+  color-scheme: dark;
   --charcoal: #1c2321;
   --charcoal-2: #252d2b;
   --charcoal-3: #313a37;

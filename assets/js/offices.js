@@ -30,6 +30,6 @@
     ].filter(Boolean).join('\n');
     const via = e.submitter && e.submitter.value === 'email' ? 'email' : 'whatsapp';
     if (via === 'email') location.href = D.mailLink('Office chair quote', msg);
-    else window.open(D.whatsappLink(msg), '_blank', 'noopener');
+    else D.openExternal(D.whatsappLink(msg));
   });
 })();

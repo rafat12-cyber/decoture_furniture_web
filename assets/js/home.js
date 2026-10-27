@@ -147,7 +147,7 @@
     if (!name || !phoneOk) { err.textContent = !name ? 'Please add your name.' : 'Please add a phone number we can call.'; return; }
     err.textContent = '';
     const text = `Hello Decoture, I would like a quote for office chairs.\nName: ${name}\nPhone: ${phone}`;
-    window.open(D.whatsappLink(text), '_blank', 'noopener');
+    D.openExternal(D.whatsappLink(text));
   });
 
   D.reveal();
