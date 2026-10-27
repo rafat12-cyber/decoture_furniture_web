@@ -1,9 +1,11 @@
 // The Decoture web server: serves the storefront, a live catalog from the database, the order
 // and quote API, and the admin panel with its API. Plain node:http, no packages.
-import { createReadStream, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { createReadStream, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { catalogScript, COLLECTIONS } from '../lib/catalog.mjs';
+import { cleanDelivery, DEFAULT_DELIVERY, deliveryCharge, DISTRICTS } from '../lib/delivery.mjs';
 import { HttpError, ORDER_STATUSES, QUOTE_STATUSES } from './db.mjs';
+import { decorateHtml, robotsTxt, sitemapXml } from './seo.mjs';
 import { hashPassword, hashToken, newToken, parseCookies, SESSION_COOKIE, SESSION_DAYS, sessionCookie, verifyPassword } from './auth.mjs';
 
 const TYPES = {
@@ -25,7 +27,8 @@ const CSP = [
   "form-action 'self'",
 ].join('; ');
 
-const PAYMENTS = ['Cash on delivery'];
+const CASH = 'Cash on delivery';
+const ONLINE = 'Online payment';
 const BD_MOBILE = /^(?:\+?88)?(01[3-9]\d{8})$/;
 export const normalizePhone = (s) => {
   const m = String(s || '').replace(/[\s()-]/g, '').match(BD_MOBILE);
@@ -55,6 +58,11 @@ function readBody(req, limit) {
     req.on('end', () => resolveBody(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+async function readForm(req) {
+  const raw = await readBody(req, 64 * 1024);
+  return Object.fromEntries(new URLSearchParams(raw.toString('utf8')));
 }
 
 async function readJson(req, limit = 64 * 1024) {
@@ -97,8 +105,9 @@ function orderText(o, siteUrl) {
     ...o.items.map((i) => `- ${i.qty} x ${i.sku}${i.price != null ? ` @ ${money(i.price)}` : ''}`),
     '',
     `Subtotal: ${money(o.subtotal)}${o.unpriced ? ' + items priced on confirmation' : ''}`,
-    `Delivery: ${o.delivery}`,
-    `Payment: ${o.payment}`,
+    `Delivery: ${o.delivery} (${o.deliveryFee ? money(o.deliveryFee) : 'free'})`,
+    `Total: ${money(o.total)}${o.unpriced ? ' +' : ''}`,
+    `Payment: ${o.payment}${o.paymentStatus === 'paid' ? ' (paid)' : o.paymentStatus === 'pending' ? ' (waiting for payment)' : ''}`,
     '',
     `Name: ${o.name}`,
     `Phone: ${o.phone}`,
@@ -112,7 +121,8 @@ function orderText(o, siteUrl) {
 // What a customer may see about their own order: no internal note.
 const publicOrder = (o) => ({
   id: o.id, createdAt: o.createdAt, status: o.status, items: o.items, subtotal: o.subtotal, unpriced: o.unpriced,
-  delivery: o.delivery, payment: o.payment, name: o.name, district: o.district, area: o.area,
+  deliveryFee: o.deliveryFee, total: o.total, delivery: o.delivery, payment: o.payment, paymentStatus: o.paymentStatus,
+  name: o.name, district: o.district, area: o.area,
   events: o.events.map((e) => ({ at: e.at, status: e.status, note: e.note })),
 });
 
@@ -123,7 +133,9 @@ const STATUS_WORDS = {
   cancelled: 'has been cancelled. Call us if this is a surprise',
 };
 
-export function createApp({ db, root, uploadsDir, mailer, config = {}, log = console }) {
+const NO_GATEWAY = { enabled: false };
+
+export function createApp({ db, root, uploadsDir, mailer, gateway = NO_GATEWAY, config = {}, log = console }) {
   const siteRoot = resolve(root);
   const uploadsRoot = resolve(uploadsDir);
   mkdirSync(join(uploadsRoot, 'products'), { recursive: true });
@@ -137,6 +149,43 @@ export function createApp({ db, root, uploadsDir, mailer, config = {}, log = con
     ? String(req.headers['x-forwarded-for']).split(',')[0].trim()
     : req.socket.remoteAddress || '');
   const isHttps = (req) => !!req.socket.encrypted || (config.trustProxy && req.headers['x-forwarded-proto'] === 'https');
+  const siteUrl = (req) => config.siteUrl || `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`;
+  const delivery = () => db.setting('delivery', DEFAULT_DELIVERY);
+  // What the storefront needs besides the products: delivery charges and payment options.
+  const storeCatalog = () => ({ ...db.catalog(), live: true, delivery: delivery(), districts: DISTRICTS, payments: { online: gateway.enabled } });
+
+  // ---------- Online payment ----------
+  async function startPayment(req, order) {
+    const tranId = `${order.id}-${Date.now().toString(36).toUpperCase()}`;
+    const o = db.startPayment(order.id, tranId);
+    const back = `${siteUrl(req)}/api/pay/sslcommerz`;
+    try {
+      const { url } = await gateway.start({ order: o, tranId, urls: { success: `${back}/success`, fail: `${back}/fail`, cancel: `${back}/cancel`, ipn: `${back}/ipn` } });
+      return { order: db.order(order.id), payUrl: url };
+    } catch (e) {
+      log.error(e);
+      return { order: db.markPaymentFailed(order.id), payError: 'We could not open the online payment page. You can try again or pay in cash on delivery.' };
+    }
+  }
+  // Marks the order paid only when SSLCommerz confirms this exact transaction and amount.
+  async function confirmPayment(valId, tranId) {
+    const o = db.orderByTran(tranId);
+    if (!o) return null;
+    if (o.paymentStatus === 'paid') return o;
+    let v = null;
+    try { v = await gateway.validate(valId); } catch (e) { log.error(e); }
+    if (!v || v.tranId !== o.tranId || v.currency !== 'BDT' || Math.round(v.amount) !== o.total) {
+      if (v) log.error(new Error(`Payment for ${o.id} did not match: ${JSON.stringify(v)}`));
+      return db.markPaymentFailed(o.id);
+    }
+    const { order, changed } = db.markPaid(o.id, { amount: Math.round(v.amount), ref: `${v.valId}${v.bankTranId ? ' / ' + v.bankTranId : ''}`, method: v.method });
+    if (changed) {
+      if (v.risky) db.updateOrder(o.id, { adminNote: `${order.adminNote ? order.adminNote + '\n' : ''}SSLCommerz marked this payment as risky. Check it in the SSLCommerz panel before shipping.` });
+      mailer.notify({ to: config.mailTo, subject: `Order ${order.id} paid online (${money(order.paidAmount)})`, text: orderText(order, config.siteUrl) });
+      if (order.email) mailer.notify({ to: order.email, subject: `Payment received for Decoture order ${order.id}`, text: `Thank you, ${order.name}. We have received ${money(order.paidAmount)} for your order.\n\n${orderText(order, config.siteUrl)}` });
+    }
+    return db.order(o.id);
+  }
 
   // ---------- Admin session ----------
   function currentAdmin(req) {
@@ -157,9 +206,14 @@ export function createApp({ db, root, uploadsDir, mailer, config = {}, log = con
 
   route('GET', /^\/assets\/js\/catalog\.js$/, (req, res) => {
     res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-cache' });
-    res.end(catalogScript({ ...db.catalog(), live: true }, 'Served live from the Decoture database.'));
+    res.end(catalogScript(storeCatalog(), 'Served live from the Decoture database.'));
   });
-  route('GET', /^\/api\/catalog$/, (req, res) => send(res, 200, db.catalog()));
+  route('GET', /^\/api\/catalog$/, (req, res) => send(res, 200, storeCatalog()));
+  route('GET', /^\/robots\.txt$/, (req, res) => send(res, 200, robotsTxt(siteUrl(req)), { 'Cache-Control': 'public, max-age=3600' }));
+  route('GET', /^\/sitemap\.xml$/, (req, res) => {
+    const lastmod = db.variants().reduce((m, v) => (v.updatedAt > m ? v.updatedAt : m), '');
+    send(res, 200, sitemapXml(siteUrl(req), db.catalog(), lastmod), { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+  });
   route('GET', /^\/api\/health$/, (req, res) => send(res, 200, { ok: true }));
 
   route('POST', /^\/api\/orders$/, async (req, res) => {
@@ -169,8 +223,9 @@ export function createApp({ db, root, uploadsDir, mailer, config = {}, log = con
     if (!phone) throw new HttpError(400, 'Please enter a Bangladeshi mobile number, for example 01712345678.', { field: 'phone' });
     const email = text(b.email, 120, { label: 'Email' });
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'Please check the email address.', { field: 'email' });
-    const payment = text(b.payment || PAYMENTS[0], 40, { label: 'Payment' });
-    if (!PAYMENTS.includes(payment)) throw new HttpError(400, 'Cash on delivery is the only payment method for now.', { field: 'payment' });
+    const payment = text(b.payment || CASH, 40, { label: 'Payment' });
+    const online = payment === ONLINE;
+    if (payment !== CASH && !(online && gateway.enabled)) throw new HttpError(400, 'Please choose cash on delivery.', { field: 'payment' });
     if (!Array.isArray(b.items) || !b.items.length || b.items.length > 50) throw new HttpError(400, 'Your cart is empty.');
     const merged = new Map();
     for (const it of b.items) {
@@ -180,6 +235,8 @@ export function createApp({ db, root, uploadsDir, mailer, config = {}, log = con
       merged.set(id, (merged.get(id) || 0) + qty);
     }
     const district = text(b.district, 60, { required: true, label: 'District' });
+    if (!DISTRICTS.includes(district)) throw new HttpError(400, 'Please choose your district from the list.', { field: 'district' });
+    const zones = delivery();
     const order = db.createOrder({
       name: text(b.name, 80, { required: true, label: 'Name' }),
       phone, email, district,
@@ -187,9 +244,20 @@ export function createApp({ db, root, uploadsDir, mailer, config = {}, log = con
       address: text(b.address, 200, { required: true, label: 'Address' }),
       note: text(b.note, 500, { label: 'Note' }),
       payment,
-      delivery: district === 'Dhaka' ? 'Inside Dhaka, charge confirmed by phone' : 'Outside Dhaka, charge confirmed by phone',
+      paymentStatus: online ? 'pending' : 'cod',
+      delivery: ({ chairs, subtotal, unpriced }) => {
+        if (online && unpriced) throw new HttpError(400, 'Some chairs in your cart are priced on request, so this order can only be paid in cash on delivery.', { field: 'payment' });
+        const { zone, fee, free } = deliveryCharge(zones, district, chairs, subtotal);
+        return { zone: zone.id, fee, label: `${zone.name}, ${zone.days}${free ? ', free delivery' : ''}` };
+      },
       items: [...merged].map(([id, qty]) => ({ id, qty })),
     });
+    if (online) {
+      // The team hears about an online order once it is paid, or when the customer switches to cash.
+      const started = await startPayment(req, order);
+      send(res, 201, { order: publicOrder(started.order), payUrl: started.payUrl, payError: started.payError });
+      return;
+    }
     const body = orderText(order, config.siteUrl);
     mailer.notify({ to: config.mailTo, subject: `New order ${order.id} from ${order.name}`, text: body, replyTo: order.email || undefined });
     if (order.email) {
@@ -198,13 +266,56 @@ export function createApp({ db, root, uploadsDir, mailer, config = {}, log = con
     send(res, 201, { order: publicOrder(order) });
   });
 
-  route('GET', /^\/api\/orders\/([A-Z0-9-]{6,24})$/, (req, res, [id], url) => {
+  // The same answer for a wrong id and a wrong phone, so order ids cannot be probed.
+  const customerOrder = (req, id, rawPhone) => {
     if (!limits.track(clientIp(req))) throw new HttpError(429, 'Too many lookups. Please try again in a few minutes.');
     const o = db.order(id);
-    const phone = normalizePhone(url.searchParams.get('phone'));
-    // The same answer for a wrong id and a wrong phone, so order ids cannot be probed.
+    const phone = normalizePhone(rawPhone);
     if (!o || !phone || o.phone !== phone) throw new HttpError(404, 'We could not find an order with that number and phone.');
-    send(res, 200, { order: publicOrder(o) });
+    return o;
+  };
+  route('GET', /^\/api\/orders\/([A-Z0-9-]{6,24})$/, (req, res, [id], url) => {
+    send(res, 200, { order: publicOrder(customerOrder(req, id, url.searchParams.get('phone'))) });
+  });
+  // An online order whose payment failed or was abandoned: try again, or pay on delivery instead.
+  const unpaid = (o) => {
+    if (o.status === 'cancelled') throw new HttpError(409, 'This order was cancelled. Please place a new order.');
+    if (!['pending', 'failed'].includes(o.paymentStatus)) throw new HttpError(409, 'This order does not need an online payment.');
+  };
+  route('POST', /^\/api\/orders\/([A-Z0-9-]{6,24})\/pay$/, async (req, res, [id]) => {
+    const b = await readJson(req);
+    const o = customerOrder(req, id, b.phone);
+    unpaid(o);
+    if (!gateway.enabled) throw new HttpError(409, 'Online payment is not available right now. Please choose cash on delivery.');
+    const started = await startPayment(req, o);
+    if (!started.payUrl) throw new HttpError(502, started.payError);
+    send(res, 200, { payUrl: started.payUrl });
+  });
+  route('POST', /^\/api\/orders\/([A-Z0-9-]{6,24})\/cash$/, async (req, res, [id]) => {
+    const b = await readJson(req);
+    const o = customerOrder(req, id, b.phone);
+    unpaid(o);
+    const order = db.switchToCash(o.id);
+    mailer.notify({ to: config.mailTo, subject: `New order ${order.id} from ${order.name}`, text: orderText(order, config.siteUrl), replyTo: order.email || undefined });
+    send(res, 200, { order: publicOrder(order) });
+  });
+
+  // SSLCommerz sends the customer's browser back here with a form post, and calls the IPN
+  // address from its own servers. Both are checked with the validation API.
+  route('POST', /^\/api\/pay\/sslcommerz\/(success|fail|cancel)$/, async (req, res, [outcome]) => {
+    const f = await readForm(req);
+    let o = db.orderByTran(String(f.tran_id || ''));
+    if (o && outcome === 'success') o = await confirmPayment(String(f.val_id || ''), o.tranId) || o;
+    else if (o) o = db.markPaymentFailed(o.id);
+    const result = !o ? 'unknown' : o.paymentStatus === 'paid' ? 'paid' : outcome === 'cancel' ? 'cancelled' : 'failed';
+    const to = o ? `/order.html?id=${encodeURIComponent(o.id)}&payment=${result}` : '/track.html';
+    res.writeHead(303, { Location: to, 'Cache-Control': 'no-store' });
+    res.end();
+  });
+  route('POST', /^\/api\/pay\/sslcommerz\/ipn$/, async (req, res) => {
+    const f = await readForm(req);
+    if (f.status === 'VALID' || f.status === 'VALIDATED') await confirmPayment(String(f.val_id || ''), String(f.tran_id || ''));
+    send(res, 200, 'ok');
   });
 
   route('POST', /^\/api\/quotes$/, async (req, res) => {
@@ -273,9 +384,9 @@ export function createApp({ db, root, uploadsDir, mailer, config = {}, log = con
       const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s; // no formulas when opened in Excel
       return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
     };
-    const rows = [['Order', 'Date', 'Status', 'Name', 'Phone', 'Email', 'District', 'Area', 'Address', 'Items', 'Subtotal', 'Note']];
+    const rows = [['Order', 'Date', 'Status', 'Name', 'Phone', 'Email', 'District', 'Area', 'Address', 'Items', 'Subtotal', 'Delivery', 'Total', 'Payment', 'Paid', 'Payment ref', 'Note']];
     db.orders({ limit: 100000 }).forEach((o) => rows.push([o.id, o.createdAt, o.status, o.name, o.phone, o.email, o.district, o.area, o.address,
-      o.items.map((i) => `${i.qty} x ${i.sku}`).join('; '), o.subtotal, o.note]));
+      o.items.map((i) => `${i.qty} x ${i.sku}`).join('; '), o.subtotal, o.deliveryFee, o.total, o.payment, o.paymentStatus === 'paid' ? o.paidAmount : '', o.paymentRef, o.note]));
     res.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="decoture-orders.csv"', 'Cache-Control': 'no-store' });
     res.end('﻿' + rows.map((r) => r.map(cell).join(',')).join('\r\n'));
   });
@@ -362,6 +473,18 @@ export function createApp({ db, root, uploadsDir, mailer, config = {}, log = con
     send(res, 200, { variant: db.updateVariant(id, { image: `uploads/products/${name}` }) });
   });
 
+  route('GET', /^\/api\/admin\/settings$/, (req, res) => {
+    requireAdmin(req);
+    send(res, 200, { delivery: delivery(), districts: DISTRICTS, payments: { online: gateway.enabled, mode: gateway.mode || null }, email: !!mailer.enabled });
+  });
+  route('PUT', /^\/api\/admin\/settings\/delivery$/, async (req, res) => {
+    requireAdmin(req);
+    const { delivery: clean, error } = cleanDelivery(await readJson(req));
+    if (error) throw new HttpError(400, error);
+    db.setSetting('delivery', clean);
+    send(res, 200, { delivery: clean });
+  });
+
   route('GET', /^\/api\/admin\/quotes$/, (req, res) => { requireAdmin(req); send(res, 200, { quotes: db.quotes() }); });
   route('PATCH', /^\/api\/admin\/quotes\/(\d{1,9})$/, async (req, res, [id]) => {
     requireAdmin(req);
@@ -405,8 +528,8 @@ export function createApp({ db, root, uploadsDir, mailer, config = {}, log = con
     if (isHttps(req)) res.setHeader('Strict-Transport-Security', 'max-age=15552000');
     const url = new URL(req.url, 'http://localhost');
     try {
-      // Writes must come from this site's own pages.
-      if (!['GET', 'HEAD'].includes(req.method)) {
+      // Writes must come from this site's own pages, except the payment gateway's callbacks.
+      if (!['GET', 'HEAD'].includes(req.method) && !url.pathname.startsWith('/api/pay/')) {
         const origin = req.headers.origin;
         let host = null;
         try { host = origin ? new URL(origin).host : null; } catch { /* "null" or junk */ }
@@ -425,6 +548,17 @@ export function createApp({ db, root, uploadsDir, mailer, config = {}, log = con
       if (target) {
         const file = normalize(join(target.base, target.rel));
         if (file.startsWith(target.base + sep)) {
+          // Storefront pages get their search and sharing tags written in.
+          if (target.base === siteRoot && /^[a-z0-9-]+\.html$/.test(target.rel)) {
+            let html = null;
+            try { html = readFileSync(file, 'utf8'); } catch { /* falls through to 404 */ }
+            if (html != null) {
+              const body = decorateHtml(html, { base: siteUrl(req), page: target.rel, query: url.searchParams, catalog: db.catalog() });
+              res.writeHead(200, { 'Content-Type': TYPES['.html'], 'Cache-Control': 'no-cache' });
+              res.end(req.method === 'HEAD' ? undefined : body);
+              return;
+            }
+          }
           const cache = /\.(jpe?g|png|webp|svg|woff2)$/i.test(file) ? 'public, max-age=604800' : 'no-cache';
           if (serveFile(req, res, file, cache)) return;
         }

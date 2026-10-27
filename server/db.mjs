@@ -72,6 +72,10 @@ const SCHEMA = `
     city TEXT NOT NULL DEFAULT '',
     needed_by TEXT NOT NULL DEFAULT ''
   );
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS admins (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
@@ -86,9 +90,30 @@ const SCHEMA = `
 
 const now = () => new Date().toISOString();
 
+// Columns added after the first release; older databases get them on start.
+const ORDER_COLUMNS = {
+  zone: "TEXT NOT NULL DEFAULT ''",
+  delivery_fee: 'INTEGER NOT NULL DEFAULT 0',
+  total: 'INTEGER NOT NULL DEFAULT 0',
+  payment_status: "TEXT NOT NULL DEFAULT 'cod'",
+  tran_id: "TEXT NOT NULL DEFAULT ''",
+  paid_at: "TEXT NOT NULL DEFAULT ''",
+  paid_amount: 'INTEGER',
+  payment_ref: "TEXT NOT NULL DEFAULT ''",
+};
+export const PAYMENT_STATUSES = ['cod', 'pending', 'paid', 'failed'];
+
 export function openDb(file, { seedCsv } = {}) {
   const db = new DatabaseSync(file);
   db.exec(SCHEMA);
+  const have = new Set(db.prepare('PRAGMA table_info(orders)').all().map((c) => c.name));
+  for (const [col, type] of Object.entries(ORDER_COLUMNS)) {
+    if (!have.has(col)) {
+      db.exec(`ALTER TABLE orders ADD COLUMN ${col} ${type}`);
+      if (col === 'total') db.exec('UPDATE orders SET total = subtotal + delivery_fee');
+    }
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS orders_tran ON orders (tran_id)');
   const count = db.prepare('SELECT COUNT(*) AS n FROM variants').get().n;
   if (count === 0 && seedCsv) seed(db, parseCsv(readFileSync(seedCsv, 'utf8')));
   return wrap(db);
@@ -140,7 +165,9 @@ function wrap(db) {
     return {
       id: o.id, createdAt: o.created_at, updatedAt: o.updated_at, status: o.status,
       name: o.name, phone: o.phone, email: o.email, district: o.district, area: o.area, address: o.address, note: o.note,
-      payment: o.payment, delivery: o.delivery, subtotal: o.subtotal, unpriced: o.unpriced, adminNote: o.admin_note,
+      payment: o.payment, delivery: o.delivery, zone: o.zone, deliveryFee: o.delivery_fee, subtotal: o.subtotal, total: o.total,
+      unpriced: o.unpriced, adminNote: o.admin_note,
+      paymentStatus: o.payment_status, tranId: o.tran_id, paidAt: o.paid_at, paidAmount: o.paid_amount, paymentRef: o.payment_ref,
       items: q.items.all(id).map((i) => ({ id: i.variant_id, sku: i.sku, qty: i.qty, price: i.price, image: i.image })),
       events: q.events.all(id),
     };
@@ -208,13 +235,19 @@ function wrap(db) {
         const id = newOrderId();
         const t = now();
         let subtotal = 0; let unpriced = 0;
+        let chairs = 0;
         for (const { v, qty } of lines) {
           const p = unitPrice(v);
+          chairs += qty;
           if (p == null) unpriced += qty; else subtotal += p * qty;
         }
-        db.prepare(`INSERT INTO orders (id, created_at, updated_at, status, name, phone, email, district, area, address, note, payment, delivery, subtotal, unpriced)
-          VALUES (?, ?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-          .run(id, t, t, input.name, input.phone, input.email, input.district, input.area, input.address, input.note, input.payment, input.delivery, subtotal, unpriced);
+        // The caller prices delivery from the real subtotal, and may refuse the order (for
+        // example online payment with unpriced chairs) before anything is written.
+        const d = input.delivery({ chairs, subtotal, unpriced });
+        db.prepare(`INSERT INTO orders (id, created_at, updated_at, status, name, phone, email, district, area, address, note, payment, delivery, subtotal, unpriced, zone, delivery_fee, total, payment_status)
+          VALUES (?, ?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .run(id, t, t, input.name, input.phone, input.email, input.district, input.area, input.address, input.note, input.payment,
+            d.label, subtotal, unpriced, d.zone, d.fee, subtotal + d.fee, input.paymentStatus || 'cod');
         const addItem = db.prepare('INSERT INTO order_items (order_id, variant_id, sku, qty, price, image) VALUES (?, ?, ?, ?, ?, ?)');
         const take = db.prepare('UPDATE variants SET stock = stock - ?, updated_at = ? WHERE id = ?');
         for (const { v, qty } of lines) {
@@ -257,11 +290,55 @@ function wrap(db) {
         newOrders: one("SELECT COUNT(*) AS n FROM orders WHERE status = 'new'").n,
         openOrders: one("SELECT COUNT(*) AS n FROM orders WHERE status IN ('new', 'confirmed', 'shipped')").n,
         monthOrders: one("SELECT COUNT(*) AS n FROM orders WHERE substr(created_at, 1, 7) = ? AND status != 'cancelled'", month).n,
-        monthSales: one("SELECT COALESCE(SUM(subtotal), 0) AS n FROM orders WHERE substr(created_at, 1, 7) = ? AND status != 'cancelled'", month).n,
+        monthSales: one("SELECT COALESCE(SUM(total), 0) AS n FROM orders WHERE substr(created_at, 1, 7) = ? AND status != 'cancelled'", month).n,
         newQuotes: one("SELECT COUNT(*) AS n FROM quotes WHERE status = 'new'").n,
         lowStock: db.prepare('SELECT * FROM variants WHERE active = 1 AND stock <= 10 ORDER BY stock, sl').all().map(variantRow),
       };
     },
+
+    // ---------- Online payment ----------
+    // A new payment attempt gets a fresh transaction id; only that id can mark the order paid.
+    startPayment(id, tranId) {
+      db.prepare("UPDATE orders SET tran_id = ?, payment_status = 'pending', payment = 'Online payment', updated_at = ? WHERE id = ? AND payment_status != 'paid'").run(tranId, now(), id);
+      return orderWithItems(id);
+    },
+    orderByTran(tranId) {
+      const r = tranId ? db.prepare('SELECT id FROM orders WHERE tran_id = ?').get(tranId) : null;
+      return r ? orderWithItems(r.id) : null;
+    },
+    // Idempotent: the success redirect and the gateway's IPN can both arrive.
+    markPaid(id, { amount, ref, method }) {
+      return tx(db, () => {
+        const o = q.order.get(id);
+        if (!o || o.payment_status === 'paid') return { order: orderWithItems(id), changed: false };
+        const t = now();
+        db.prepare("UPDATE orders SET payment_status = 'paid', paid_at = ?, paid_amount = ?, payment_ref = ?, updated_at = ? WHERE id = ?").run(t, amount, ref, t, id);
+        db.prepare('INSERT INTO order_events (order_id, at, status, note) VALUES (?, ?, ?, ?)').run(id, t, o.status, `Paid online${method ? ` by ${method}` : ''}`);
+        return { order: orderWithItems(id), changed: true };
+      });
+    },
+    markPaymentFailed(id) {
+      db.prepare("UPDATE orders SET payment_status = 'failed', updated_at = ? WHERE id = ? AND payment_status = 'pending'").run(now(), id);
+      return orderWithItems(id);
+    },
+    switchToCash(id) {
+      db.prepare("UPDATE orders SET payment = 'Cash on delivery', payment_status = 'cod', tran_id = '', updated_at = ? WHERE id = ? AND payment_status IN ('pending', 'failed')").run(now(), id);
+      return orderWithItems(id);
+    },
+    // Online orders that were never paid are cancelled after a while so their chairs go back on sale.
+    expireUnpaid(hours) {
+      const cutoff = new Date(Date.now() - hours * 3600000).toISOString();
+      const ids = db.prepare("SELECT id FROM orders WHERE status = 'new' AND payment_status IN ('pending', 'failed') AND updated_at < ?").all(cutoff).map((r) => r.id);
+      ids.forEach((id) => this.updateOrder(id, { status: 'cancelled', note: 'Online payment was not completed' }));
+      return ids;
+    },
+
+    // ---------- Settings ----------
+    setting(key, fallback) {
+      const r = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+      return r ? JSON.parse(r.value) : fallback;
+    },
+    setSetting: (key, value) => db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value').run(key, JSON.stringify(value)),
 
     // ---------- Quotes ----------
     addQuote(qt) {

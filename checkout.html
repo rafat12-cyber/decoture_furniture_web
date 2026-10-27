@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Checkout · Decoture</title>
-  <meta name="description" content="Place your Decoture order with cash on delivery.">
+  <meta name="description" content="Place your Decoture order: cash on delivery anywhere in Bangladesh, or pay online with bKash, Nagad or card.">
   <meta name="theme-color" content="#1c2321">
   <link rel="icon" href="assets/img/logo/mark.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +20,7 @@
     <div class="page-head">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="cart.html">Cart</a><span aria-hidden="true">/</span><span>Checkout</span></nav>
       <h1 data-split>Checkout</h1>
-      <p>Pay in cash when your chairs arrive. We call to confirm the order and the delivery charge before anything leaves the warehouse.</p>
+      <p data-checkout-lead>Pay in cash when your chairs arrive. We call to confirm the order before anything leaves the warehouse.</p>
     </div>
     <div class="two-col">
       <form class="form" data-checkout-form novalidate>
@@ -48,13 +48,13 @@
         <fieldset>
           <legend>Payment</legend>
           <div class="radio-cards">
-            <label class="radio-card"><input type="radio" name="payment" value="Cash on delivery" checked><span>Cash on delivery<small>Pay when the chairs arrive.</small></span><span class="tag">Available</span></label>
-            <label class="radio-card"><input type="radio" name="payment" value="bKash / Nagad" disabled><span>bKash, Nagad or card<small>Online payment is coming soon.</small></span><span class="tag">Soon</span></label>
+            <label class="radio-card"><input type="radio" name="payment" value="Cash on delivery" checked><span>Cash on delivery<small>Pay when the chairs arrive.</small></span></label>
+            <label class="radio-card" data-online-card><input type="radio" name="payment" value="Online payment" disabled><span>bKash, Nagad, Rocket or card<small data-online-note>Online payment is coming soon.</small></span><span class="tag" data-online-tag>Soon</span></label>
           </div>
         </fieldset>
         <p class="error-text" data-form-error role="alert"></p>
-        <button class="button button--block" type="submit">Place order</button>
-        <p class="small soft">By placing the order you agree that our team may call you to confirm it. Nothing is charged online.</p>
+        <button class="button button--block" type="submit" data-submit>Place order</button>
+        <p class="small soft" data-submit-note>By placing the order you agree that our team may call you to confirm it. Nothing is charged online.</p>
       </form>
       <aside class="summary" aria-labelledby="sum-title">
         <h2 id="sum-title">Your order</h2>

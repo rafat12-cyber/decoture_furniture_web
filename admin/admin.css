@@ -89,6 +89,10 @@ td.wrap { white-space: normal; min-width: 220px; }
 .pill--cancelled { background: #6b2f2f; }
 .pill--contacted { background: #3d5a80; }
 .pill--closed { background: var(--bg-3); color: var(--soft); }
+.pill--pay-paid { background: transparent; box-shadow: inset 0 0 0 1px #2f6b55; color: #7fc4a6; }
+.pill--pay-pending, .pill--pay-failed { background: transparent; box-shadow: inset 0 0 0 1px #8a5a2f; color: #e0a46b; }
+.zone { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 16px; margin: 0 0 14px; }
+.zone legend { padding: 0 6px; font-weight: 500; }
 
 /* Products */
 .tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }

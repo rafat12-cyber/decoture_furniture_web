@@ -39,11 +39,39 @@
       <div>${o.items.map((i) => `<p class="track-line"><span>${i.qty} × ${D.esc(i.sku)}</span><span>${i.price == null ? '' : D.money(i.price * i.qty)}</span></p>`).join('')}</div>
       <div class="totals">
         <div><span>Subtotal</span><span>${D.money(o.subtotal)}${o.unpriced ? ' +' : ''}</span></div>
-        <div><span>Delivery</span><span class="soft">${D.esc(o.delivery)}</span></div>
-        <div><span>Payment</span><span>${D.esc(o.payment)}</span></div>
+        <div><span>Delivery <small class="soft">${D.esc(o.delivery)}</small></span><span>${o.deliveryFee ? D.money(o.deliveryFee) : 'Free'}</span></div>
+        <div class="grand"><span>Total</span><span>${D.money(o.total)}${o.unpriced ? ' +' : ''}</span></div>
+        <div><span>Payment</span><span>${D.esc(D.paymentLabel(o))}</span></div>
       </div>
+      </div>
+      ${(o.paymentStatus === 'pending' || o.paymentStatus === 'failed') && !cancelled ? `
+      <div class="note-box note-box--warn"><strong>This order is not paid yet.</strong> Pay online again, or pay in cash when the chairs arrive.</div>
+      <p class="error-text" data-pay-error role="alert"></p>
+      <div class="actions">
+        ${D.onlinePayment ? '<button class="button" type="button" data-pay-again>Pay online again</button>' : ''}
+        <button class="button button--ghost" type="button" data-pay-cash>Pay cash on delivery instead</button>
+      </div>` : ''}
       <p class="small soft">Placed ${when(o.createdAt)} · delivering to ${D.esc(o.area)}, ${D.esc(o.district)}</p>`;
   }
+
+  // Unpaid online orders: open a new payment, or switch to cash on delivery.
+  out.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-pay-again], [data-pay-cash]');
+    if (!btn) return;
+    const oid = form.id.value.trim().toUpperCase();
+    const body = { phone: form.phone.value.trim() };
+    const err = out.querySelector('[data-pay-error]');
+    btn.disabled = true; err.textContent = '';
+    try {
+      if (btn.matches('[data-pay-again]')) {
+        const { payUrl } = await D.api(`/api/orders/${encodeURIComponent(oid)}/pay`, { method: 'POST', body });
+        location.href = payUrl;
+      } else {
+        const { order } = await D.api(`/api/orders/${encodeURIComponent(oid)}/cash`, { method: 'POST', body });
+        render(order);
+      }
+    } catch (ex) { btn.disabled = false; err.textContent = ex.message; }
+  });
 
   async function lookup() {
     const oid = form.id.value.trim().toUpperCase();

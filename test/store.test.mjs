@@ -137,7 +137,9 @@ test('validates the order form', async () => {
     [{ items: [] }, /cart is empty/],
     [{ items: [{ id: 'nope', qty: 1 }] }, /no longer available/],
     [{ items: [{ id: '6801a-silver', qty: 0 }] }, /between 1 and 500/],
-    [{ payment: 'Card' }, /Cash on delivery/],
+    [{ payment: 'Card' }, /cash on delivery/i],
+    [{ payment: 'Online payment' }, /cash on delivery/i],
+    [{ district: 'Atlantis' }, /district/],
     [{ email: 'not-an-email' }, /email/],
   ];
   for (const [over, msg] of cases) {

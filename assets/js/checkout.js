@@ -1,5 +1,6 @@
-// Checkout: cash on delivery. On the live store the order goes to the server; on a static host
-// it is saved in the browser and handed to WhatsApp or email.
+// Checkout: cash on delivery, or online payment through SSLCommerz when the store has it set up.
+// On the live store the order goes to the server; on a static host it is saved in the browser and
+// handed to WhatsApp or email.
 (function () {
   'use strict';
   const D = window.Decoture;
@@ -10,9 +11,31 @@
 
   if (!D.cart.count()) { location.replace('cart.html'); return; }
 
-  const DISTRICTS = ['Dhaka', 'Gazipur', 'Narayanganj', 'Chattogram', 'Sylhet', 'Rajshahi', 'Khulna', 'Barishal', 'Rangpur', 'Mymensingh', 'Cumilla', 'Bogura', "Cox's Bazar", 'Jashore', 'Narsingdi', 'Tangail', 'Other district'];
-  form.district.insertAdjacentHTML('beforeend', DISTRICTS.map((d) => `<option>${D.esc(d)}</option>`).join(''));
+  form.district.insertAdjacentHTML('beforeend', D.districts.map((d) => `<option>${D.esc(d)}</option>`).join(''));
   form.district.value = 'Dhaka';
+  form.district.addEventListener('change', renderSummary);
+
+  // Online payment is offered when the server has SSLCommerz set up and every chair has a price.
+  const onlineCard = document.querySelector('[data-online-card]');
+  const submit = form.querySelector('[data-submit]');
+  const submitNote = document.querySelector('[data-submit-note]');
+  function renderPayment() {
+    const input = onlineCard.querySelector('input');
+    const unpriced = D.cart.totals().unpriced > 0;
+    input.disabled = !D.onlinePayment || unpriced;
+    if (input.disabled && input.checked) form.payment.value = 'Cash on delivery';
+    onlineCard.querySelector('[data-online-note]').textContent = !D.onlinePayment
+      ? 'Online payment is coming soon.'
+      : unpriced ? 'Some chairs are priced on request, so please pay on delivery.' : 'Pay now on the secure SSLCommerz page.';
+    onlineCard.querySelector('[data-online-tag]').hidden = D.onlinePayment && !unpriced;
+    const online = form.payment.value === 'Online payment';
+    submit.textContent = online ? 'Continue to payment' : 'Place order';
+    submitNote.textContent = online
+      ? 'You will pay on the SSLCommerz page with bKash, Nagad, Rocket or a card, then come back here.'
+      : 'By placing the order you agree that our team may call you to confirm it. Nothing is charged online.';
+  }
+  if (D.onlinePayment) document.querySelector('[data-checkout-lead]').textContent = 'Pay in cash when your chairs arrive, or online now with bKash, Nagad, Rocket or a card.';
+  form.addEventListener('change', (e) => { if (e.target.name === 'payment') renderPayment(); });
 
   function renderSummary() {
     linesBox.innerHTML = D.cart.items().map((i) => `
@@ -21,7 +44,8 @@
         <div><h3>${D.esc(i.product.name)}</h3><p class="meta">${D.esc(i.variant.colour)} · Qty ${i.qty}</p></div>
         <div class="line-total">${D.variantPrice(i.variant) == null ? '' : D.money(D.variantPrice(i.variant) * i.qty)}</div>
       </div>`).join('');
-    totals.innerHTML = D.totalsHTML();
+    totals.innerHTML = D.totalsHTML(form.district.value || 'Dhaka');
+    renderPayment();
   }
   renderSummary();
   D.cart.subscribe(renderSummary);
@@ -57,21 +81,22 @@
   });
 
   // The live store: the server checks stock and prices, saves the order and holds the chairs.
-  const submit = form.querySelector('[type="submit"]');
+  // For online payment it also opens an SSLCommerz session, and the customer goes there next.
   async function placeOnServer(details) {
     submit.disabled = true;
-    submit.textContent = 'Placing your order…';
+    submit.textContent = details.payment === 'Online payment' ? 'Opening the payment page…' : 'Placing your order…';
     try {
-      const { order } = await D.api('/api/orders', {
+      const { order, payUrl } = await D.api('/api/orders', {
         method: 'POST',
         body: { ...details, items: D.cart.items().map((i) => ({ id: i.id, qty: i.qty })) },
       });
-      D.orders.save({ ...order, ...details, server: true });
+      D.orders.save({ ...details, ...order, server: true });
       D.cart.clear();
-      location.href = `order.html?id=${encodeURIComponent(order.id)}`;
+      if (payUrl) { location.href = payUrl; return; }
+      location.href = `order.html?id=${encodeURIComponent(order.id)}${order.paymentStatus === 'failed' ? '&payment=failed' : ''}`;
     } catch (e) {
       submit.disabled = false;
-      submit.textContent = 'Place order';
+      renderPayment();
       const data = e.data || {};
       if (e.status === 409 && data.variant) {
         // Stock changed since the cart was filled: fix the cart and say what happened.
@@ -88,11 +113,14 @@
   // Static hosting: keep the order in this browser and hand it to WhatsApp or email.
   function placeInBrowser(details) {
     const t = D.cart.totals();
+    const d = D.deliveryFor(details.district, t.count, t.subtotal);
     const order = {
       id: D.orders.newId(),
       createdAt: new Date().toISOString(),
       ...details,
-      delivery: details.district === 'Dhaka' ? 'Inside Dhaka, charge confirmed by phone' : 'Outside Dhaka, charge confirmed by phone',
+      delivery: `${d.zone.name}${d.zone.days ? `, ${d.zone.days}` : ''}${d.free ? ', free delivery' : ''}`,
+      deliveryFee: d.fee,
+      total: t.subtotal + d.fee,
       items: D.cart.items().map((i) => ({ id: i.id, sku: i.variant.sku, qty: i.qty, price: D.variantPrice(i.variant), image: i.variant.image })),
       subtotal: t.subtotal,
       unpriced: t.unpriced,

@@ -1668,5 +1668,111 @@ window.DECOTURE_CATALOG = {
    "name": "D164",
    "description": "D164 is a training chair with a writing tablet, suited to classrooms and seminar rooms."
   }
- ]
+ ],
+ "delivery": {
+  "zones": [
+   {
+    "id": "dhaka",
+    "name": "Inside Dhaka",
+    "districts": [
+     "Dhaka"
+    ],
+    "fee": 300,
+    "extra": 100,
+    "days": "1 to 2 days"
+   },
+   {
+    "id": "near",
+    "name": "Near Dhaka",
+    "districts": [
+     "Gazipur",
+     "Narayanganj",
+     "Narsingdi",
+     "Manikganj",
+     "Munshiganj"
+    ],
+    "fee": 500,
+    "extra": 150,
+    "days": "2 to 3 days"
+   },
+   {
+    "id": "outside",
+    "name": "Outside Dhaka",
+    "districts": [],
+    "fee": 800,
+    "extra": 200,
+    "days": "3 to 5 days"
+   }
+  ],
+  "freeOver": null
+ },
+ "districts": [
+  "Bagerhat",
+  "Bandarban",
+  "Barguna",
+  "Barishal",
+  "Bhola",
+  "Bogura",
+  "Brahmanbaria",
+  "Chandpur",
+  "Chapai Nawabganj",
+  "Chattogram",
+  "Chuadanga",
+  "Cox's Bazar",
+  "Cumilla",
+  "Dhaka",
+  "Dinajpur",
+  "Faridpur",
+  "Feni",
+  "Gaibandha",
+  "Gazipur",
+  "Gopalganj",
+  "Habiganj",
+  "Jamalpur",
+  "Jashore",
+  "Jhalokati",
+  "Jhenaidah",
+  "Joypurhat",
+  "Khagrachhari",
+  "Khulna",
+  "Kishoreganj",
+  "Kurigram",
+  "Kushtia",
+  "Lakshmipur",
+  "Lalmonirhat",
+  "Madaripur",
+  "Magura",
+  "Manikganj",
+  "Meherpur",
+  "Moulvibazar",
+  "Munshiganj",
+  "Mymensingh",
+  "Naogaon",
+  "Narail",
+  "Narayanganj",
+  "Narsingdi",
+  "Natore",
+  "Netrokona",
+  "Nilphamari",
+  "Noakhali",
+  "Pabna",
+  "Panchagarh",
+  "Patuakhali",
+  "Pirojpur",
+  "Rajbari",
+  "Rajshahi",
+  "Rangamati",
+  "Rangpur",
+  "Satkhira",
+  "Shariatpur",
+  "Sherpur",
+  "Sirajganj",
+  "Sunamganj",
+  "Sylhet",
+  "Tangail",
+  "Thakurgaon"
+ ],
+ "payments": {
+  "online": false
+ }
 };

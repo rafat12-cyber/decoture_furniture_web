@@ -9,6 +9,8 @@
   const when = (iso) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Dhaka' });
   const STATUS = { new: 'New', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' };
   const QSTATUS = { new: 'New', contacted: 'Contacted', closed: 'Closed' };
+  const PAY = { cod: 'Cash on delivery', pending: 'Waiting for payment', paid: 'Paid online', failed: 'Payment failed' };
+  const payPill = (o) => (o.paymentStatus && o.paymentStatus !== 'cod' ? ` <span class="pill pill--pay-${esc(o.paymentStatus)}">${PAY[o.paymentStatus]}</span>` : '');
   const main = $('[data-main]');
   const panel = $('[data-panel]');
   const backdrop = $('[data-panel-backdrop]');
@@ -114,8 +116,8 @@
           <td class="tnum">${esc(o.id)}</td><td>${when(o.createdAt)}</td><td>${esc(o.name)}</td>
           ${compact ? '' : `<td class="tnum">${esc(o.phone)}</td><td>${esc(o.district)}</td>`}
           <td class="num">${o.items.reduce((n, i) => n + i.qty, 0)}</td>
-          <td class="num">${money(o.subtotal)}${o.unpriced ? ' +' : ''}</td>
-          <td><span class="pill pill--${esc(o.status)}">${STATUS[o.status]}</span></td>
+          <td class="num">${money(o.total)}${o.unpriced ? ' +' : ''}</td>
+          <td><span class="pill pill--${esc(o.status)}">${STATUS[o.status]}</span>${payPill(o)}</td>
         </tr>`).join('')}</tbody></table></div>`;
   }
   function bindOrderRows(root) {
@@ -155,7 +157,7 @@
     const wa = `https://wa.me/88${o.phone}?text=${encodeURIComponent(`Hello ${o.name}, this is Decoture about your order ${o.id}.`)}`;
     openPanel(`
       <h2 id="panel-title">Order ${esc(o.id)}</h2>
-      <p><span class="pill pill--${esc(o.status)}">${STATUS[o.status]}</span> <span class="soft">placed ${when(o.createdAt)}</span></p>
+      <p><span class="pill pill--${esc(o.status)}">${STATUS[o.status]}</span>${payPill(o)} <span class="soft">placed ${when(o.createdAt)}</span></p>
       <section>
         <h3>Customer</h3>
         <p>${esc(o.name)}<br><a href="tel:${esc(o.phone)}">${esc(o.phone)}</a>${o.email ? `<br><a href="mailto:${esc(o.email)}">${esc(o.email)}</a>` : ''}</p>
@@ -166,8 +168,15 @@
       <section>
         <h3>Chairs</h3>
         ${o.items.map((i) => `<div class="row"><span>${i.qty} × ${esc(i.sku)}</span><span class="tnum">${i.price == null ? 'Price on request' : money(i.price * i.qty)}</span></div>`).join('')}
-        <div class="row"><strong>Subtotal</strong><strong class="tnum">${money(o.subtotal)}${o.unpriced ? ' + unpriced items' : ''}</strong></div>
-        <p class="soft">${esc(o.payment)} · ${esc(o.delivery)}</p>
+        <div class="row"><span>Subtotal</span><span class="tnum">${money(o.subtotal)}${o.unpriced ? ' + unpriced items' : ''}</span></div>
+        <div class="row"><span>Delivery <span class="soft">${esc(o.delivery)}</span></span><span class="tnum">${o.deliveryFee ? money(o.deliveryFee) : 'Free'}</span></div>
+        <div class="row"><strong>Total</strong><strong class="tnum">${money(o.total)}${o.unpriced ? ' +' : ''}</strong></div>
+      </section>
+      <section>
+        <h3>Payment</h3>
+        <p>${esc(o.payment)}: <strong>${PAY[o.paymentStatus] || esc(o.paymentStatus)}</strong>${o.paymentStatus === 'paid' ? ` · ${money(o.paidAmount)} on ${when(o.paidAt)}` : ''}</p>
+        ${o.paymentRef ? `<p class="soft">SSLCommerz reference: <span class="tnum">${esc(o.paymentRef)}</span></p>` : ''}
+        ${o.paymentStatus === 'pending' || o.paymentStatus === 'failed' ? '<p class="soft">The customer has not paid yet. Unpaid online orders are cancelled after 24 hours and the chairs go back in stock. If they call to pay in cash, they can switch on their tracking page.</p>' : ''}
       </section>
       <form data-order-form class="form-grid">
         <label>Status
@@ -180,7 +189,7 @@
           <textarea name="adminNote" maxlength="2000">${esc(o.adminNote)}</textarea>
         </label>
         <p class="error full" data-order-error role="alert"></p>
-        <div class="actions full"><button class="btn" type="submit">Save</button>${o.status === 'cancelled' ? '' : '<span class="soft">Cancelling puts the chairs back in stock.</span>'}</div>
+        <div class="actions full"><button class="btn" type="submit">Save</button>${o.status === 'cancelled' ? '' : `<span class="soft">Cancelling puts the chairs back in stock.${o.paymentStatus === 'paid' ? ' This order is paid: refund it in the SSLCommerz merchant panel.' : ''}</span>`}</div>
       </form>
       <section>
         <h3>History</h3>
@@ -363,9 +372,45 @@
 
   // ---------- Settings ----------
   async function settings() {
+    const cfg = await api('/api/admin/settings');
+    const d = cfg.delivery;
+    const zoneRow = (z, i) => {
+      const last = i === d.zones.length - 1;
+      return `
+      <fieldset class="zone" data-zone="${i}">
+        <legend>${esc(z.name)}</legend>
+        <div class="form-grid">
+          <label>Name<input name="name" value="${esc(z.name)}" maxlength="40" required></label>
+          <label>Delivery time<input name="days" value="${esc(z.days)}" maxlength="40" placeholder="e.g. 1 to 2 days"></label>
+          <label>Charge for the first chair (৳)<input name="fee" type="number" min="0" step="1" value="${z.fee}" required></label>
+          <label>Each extra chair (৳)<input name="extra" type="number" min="0" step="1" value="${z.extra}" required></label>
+          ${last
+            ? '<p class="soft full">Covers every district not listed in the zones above.</p>'
+            : `<label class="full">Districts <span class="soft">(separate with commas)</span><textarea name="districts" rows="2">${esc(z.districts.join(', '))}</textarea></label>`}
+        </div>
+      </fieldset>`;
+    };
     main.innerHTML = `
       <div class="head"><h1>Settings</h1></div>
-      <section class="card" style="max-width:520px">
+      <section class="card" style="max-width:720px">
+        <h2>Delivery charges</h2>
+        <p class="soft">Customers see the charge for their district at checkout, and it is added to the order total. An order with more than one chair pays the first-chair charge once, plus the extra-chair charge for each additional chair.</p>
+        <form data-delivery-form novalidate>
+          ${d.zones.map(zoneRow).join('')}
+          <div class="form-grid">
+            <label>Free delivery for orders from (৳) <span class="soft">(leave empty for never)</span><input name="freeOver" type="number" min="0" step="1" value="${d.freeOver ?? ''}"></label>
+          </div>
+          <p class="error" data-delivery-error role="alert"></p>
+          <div class="actions"><button class="btn" type="submit">Save delivery charges</button></div>
+        </form>
+      </section>
+      <section class="card" style="max-width:720px">
+        <h2>Online payment</h2>
+        <p class="soft">${cfg.payments.online
+          ? `SSLCommerz is connected in <strong>${cfg.payments.mode === 'live' ? 'live mode: real payments' : 'sandbox mode: test payments only'}</strong>. Customers can pay with bKash, Nagad, Rocket or a card at checkout.`
+          : 'Online payment is off. Customers pay cash on delivery. To turn it on, add your SSLCommerz store ID and password to the server settings (see the README).'}</p>
+      </section>
+      <section class="card" style="max-width:720px">
         <h2>Change password</h2>
         <form class="form-grid" data-pass-form novalidate>
           <label class="full">Current password<input name="current" type="password" autocomplete="current-password" required></label>
@@ -374,10 +419,29 @@
           <div class="actions full"><button class="btn" type="submit">Change password</button></div>
         </form>
       </section>
-      <section class="card" style="max-width:520px">
+      <section class="card" style="max-width:720px">
         <h2>Order emails</h2>
-        <p class="soft">New orders and quote requests are emailed to the shop when the server has SMTP settings (see the README). Customers who give an email get a confirmation and status updates.</p>
+        <p class="soft">${cfg.email ? 'Email is on.' : 'Email is off.'} New orders and quote requests are emailed to the shop when the server has SMTP settings (see the README). Customers who give an email get a confirmation and status updates.</p>
       </section>`;
+    $('[data-delivery-form]', main).addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.currentTarget;
+      const out = $('[data-delivery-error]', main);
+      const zones = $$('[data-zone]', f).map((fs) => ({
+        name: fs.querySelector('[name=name]').value,
+        days: fs.querySelector('[name=days]').value,
+        fee: fs.querySelector('[name=fee]').value === '' ? null : Number(fs.querySelector('[name=fee]').value),
+        extra: fs.querySelector('[name=extra]').value === '' ? null : Number(fs.querySelector('[name=extra]').value),
+        districts: fs.querySelector('[name=districts]') ? fs.querySelector('[name=districts]').value.split(',').map((x) => x.trim()).filter(Boolean)
+          .map((x) => cfg.districts.find((n) => n.toLowerCase() === x.toLowerCase()) || x) : [],
+      }));
+      try {
+        await api('/api/admin/settings/delivery', { method: 'PUT', body: { zones, freeOver: f.freeOver.value === '' ? null : Number(f.freeOver.value) } });
+        out.textContent = '';
+        toast('Delivery charges saved');
+        settings();
+      } catch (ex) { out.textContent = ex.message; }
+    });
     $('[data-pass-form]', main).addEventListener('submit', async (e) => {
       e.preventDefault();
       const f = e.currentTarget;
