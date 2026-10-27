@@ -91,7 +91,7 @@
   const norm = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 
   // ---------- Geometry ----------
-  // A mesh is positions, normals, a stitch channel (coordinate, mask) and triangle indices.
+  // A mesh is positions, normals, an upholstery channel (across, along, kind) and triangle indices.
   const mesh = () => ({ p: [], n: [], t: [], i: [] });
 
   // Box with rounded edges. m adds flat segments per axis so the box can be bent afterwards.
@@ -112,7 +112,7 @@
         let d = sub(p, q); const l = Math.hypot(d[0], d[1], d[2]);
         if (l < 1e-9) { d = [0, 0, 0]; d[w] = s; } else d = d.map((x) => x / l);
         g.p.push(q[0] + d[0] * r, q[1] + d[1] * r, q[2] + d[2] * r);
-        g.n.push(...d); g.t.push(0, 0);
+        g.n.push(...d); g.t.push(0, 0, 0);
       }
       const nv = cv.length;
       for (let i = 0; i < cu.length - 1; i++) for (let j = 0; j < nv - 1; j++) {
@@ -135,7 +135,7 @@
     });
     for (let j = 0; j <= seg; j++) {
       const th = j / seg * Math.PI * 2; const c = Math.cos(th); const s = Math.sin(th);
-      prof.forEach(([r, y], i) => { g.p.push(r * c, y, r * s); g.n.push(n2[i][0] * c, n2[i][1], n2[i][0] * s); g.t.push(0, 0); });
+      prof.forEach(([r, y], i) => { g.p.push(r * c, y, r * s); g.n.push(n2[i][0] * c, n2[i][1], n2[i][0] * s); g.t.push(0, 0, 0); });
     }
     for (let j = 0; j < seg; j++) for (let i = 0; i < L - 1; i++) {
       const a = j * L + i; const b = a + L;
@@ -167,11 +167,12 @@
     }
     return g;
   }
-  // Mark stitched channels: fn(x, y, z, nx, ny, nz) -> [coordinate, mask].
+  // Mark upholstered faces: fn(x, y, z, nx, ny, nz) -> [across (-1..1), along (metres), kind].
+  // Kinds: 1 back front, 2 seat top, 3 lumbar pillow front; 0 is plain leather.
   function stitch(g, fn) {
     for (let v = 0; v < g.p.length / 3; v++) {
       const r = fn(g.p[v * 3], g.p[v * 3 + 1], g.p[v * 3 + 2], g.n[v * 3], g.n[v * 3 + 1], g.n[v * 3 + 2]);
-      g.t[v * 2] = r[0]; g.t[v * 2 + 1] = r[1];
+      g.t[v * 3] = r[0]; g.t[v * 3 + 1] = r[1]; g.t[v * 3 + 2] = r[2];
     }
     return g;
   }
@@ -189,7 +190,7 @@
     for (let v = 0; v < g.p.length / 3; v++) {
       const p = apply(m, [g.p[v * 3], g.p[v * 3 + 1], g.p[v * 3 + 2]]);
       const n = norm(apply(m, [g.n[v * 3], g.n[v * 3 + 1], g.n[v * 3 + 2]], 0));
-      bucket.p.push(p[0], p[1], p[2]); bucket.n.push(...n.slice(0, 3)); bucket.t.push(g.t[v * 2], g.t[v * 2 + 1]);
+      bucket.p.push(p[0], p[1], p[2]); bucket.n.push(...n.slice(0, 3)); bucket.t.push(g.t[v * 3], g.t[v * 3 + 1], g.t[v * 3 + 2]);
     }
     g.i.forEach((i) => bucket.i.push(base + i));
   }
@@ -219,46 +220,62 @@
     add('mech', 1, roundedBox(0.11, 0.028, 0.13, 0.015), T(0, 0.345, 0.0));
     add('mech', 2, roundedBox(0.075, 0.007, 0.007, 0.006), chain(T(0.17, 0.335, 0.08), RY(-0.35)));
     add('mech', 1, roundedBox(0.012, 0.012, 0.022, 0.011), chain(T(0.245, 0.335, 0.105)));
-    // Seat: puffed cushion with a waterfall front and a stitched centre panel, on a shell.
-    const seat = roundedBox(0.27, 0.055, 0.26, 0.05, [8, 1, 8]);
-    stitch(seat, (x, y, z, nx, ny) => [(z + 0.26) * 22, ny > 0.7 && Math.abs(x) < 0.17 ? 1 : 0]);
+    // Seat: a bucket seat with raised side bolsters, a quilted centre panel and a waterfall front.
+    const seat = roundedBox(0.27, 0.06, 0.26, 0.05, [10, 1, 10]);
+    stitch(seat, (x, y, z, nx, ny) => [x / 0.27, z, ny > 0.6 ? 2 : 0]);
     deform(seat, (x, y, z) => {
-      const puff = y > 0 ? 0.022 * (1 - (x / 0.27) ** 2) * (1 - (z / 0.26) ** 2) : 0;
+      const xn = Math.abs(x / 0.27);
+      const up = clamp((y + 0.06) / 0.12, 0, 1);
+      const bolster = 0.05 * smooth(clamp((xn - 0.5) / 0.5, 0, 1)) * up;
+      const puff = y > 0 ? 0.012 * (1 - xn * xn) * (1 - (z / 0.26) ** 2) : 0;
       const fall = z > 0.12 ? (z - 0.12) ** 2 * 1.6 : 0;
-      return [x, y + puff - fall, z];
+      return [x, y + bolster + puff - fall, z];
     });
-    add('seat', 0, seat, T(0, 0.435, 0.02));
+    add('seat', 0, seat, T(0, 0.44, 0.02));
     add('seat', 1, roundedBox(0.25, 0.012, 0.24, 0.01), T(0, 0.38, 0.02));
-    // Back: a high, curved back with lumbar support and a headrest pillow, joined by a chrome spine.
-    const back = roundedBox(0.25, 0.37, 0.05, 0.045, [8, 12, 1]);
-    stitch(back, (x, y, z, nx, ny, nz) => [(y + 0.37) * 16, nz > 0.7 && Math.abs(x) < 0.16 && y < 0.2 ? 1 : 0]);
+    // Back: a racing back. Narrow waist, wide shoulder wings, a tapered headrest with the
+    // embroidered mark, harness slots, and side bolsters that wrap forward.
+    const WIDTH = [[-0.4, 0.225], [-0.25, 0.212], [-0.08, 0.222], [0.08, 0.272], [0.16, 0.255], [0.24, 0.168], [0.4, 0.155]];
+    const widthAt = (y) => {
+      let i = 0;
+      while (i < WIDTH.length - 2 && y > WIDTH[i + 1][0]) i++;
+      const [y0, w0] = WIDTH[i]; const [y1, w1] = WIDTH[i + 1];
+      return lerp(w0, w1, smooth(clamp((y - y0) / (y1 - y0), 0, 1)));
+    };
+    const back = roundedBox(0.25, 0.4, 0.06, 0.045, [10, 18, 1]);
+    stitch(back, (x, y, z, nx, ny, nz) => [x / 0.25, y, nz > 0.6 ? 1 : 0]);
     deform(back, (x, y, z) => {
-      const wrap = 0.55 * x * x;
-      const lumbar = z > -0.01 ? 0.03 * Math.exp(-(((y + 0.17) / 0.09) ** 2)) * (1 - (x / 0.25) ** 2) : 0;
-      return [x, y, z + wrap + lumbar];
+      const xn = x / 0.25; const w = widthAt(y); const xw = xn * w;
+      const neck = 1 - smooth(clamp((y - 0.13) / 0.1, 0, 1));
+      const bolster = 0.075 * smooth(clamp((Math.abs(xn) - 0.52) / 0.48, 0, 1)) * neck;
+      return [xw, y, z + bolster + 0.35 * xw * xw];
     });
-    const backM = chain(T(0, 0.9, -0.29), RX(-0.17));
+    const backM = chain(T(0, 0.96, -0.3), RX(-0.15));
     add('back', 0, back, backM);
-    const head = roundedBox(0.17, 0.075, 0.04, 0.035, [4, 2, 1]);
-    deform(head, (x, y, z) => [x, y, z + 0.6 * x * x]);
-    add('back', 0, head, chain(backM, T(0, 0.27, 0.06)));
-    add('back', 2, roundedBox(0.035, 0.17, 0.012, 0.01), chain(T(0, 0.48, -0.23), RX(-0.72)));
-    add('back', 1, roundedBox(0.22, 0.33, 0.012, 0.012), chain(backM, T(0, -0.01, -0.05)));
-    // Arms: a chrome loop from seat to pad, and a soft pad on top.
+    const pillow = roundedBox(0.14, 0.065, 0.035, 0.03, [3, 3, 1]);
+    stitch(pillow, (x, y, z, nx, ny, nz) => [x / 0.14, y, nz > 0.5 ? 3 : 0]);
+    deform(pillow, (x, y, z) => [x, y, z + (z > 0 ? 0.02 * (1 - (x / 0.14) ** 2) * (1 - (y / 0.065) ** 2) : 0)]);
+    add('back', 0, pillow, chain(backM, T(0, -0.2, 0.085)));
+    // Recline brackets on both sides, with a chrome knob.
+    for (const side of [-1, 1]) {
+      add('back', 1, roundedBox(0.012, 0.14, 0.04, 0.011, [1, 4, 1]), chain(T(side * 0.262, 0.52, -0.24), RX(-0.45)));
+      add('back', 2, lathe(cylProfile(0.022, -0.008, 0.008, 0.006, 3), 24), chain(T(side * 0.278, 0.47, -0.2), RZ(Math.PI / 2)));
+    }
+    // Arms: black posts with wide padded tops.
     for (const [side, group] of [[-1, 'armL'], [1, 'armR']]) {
-      const post = deform(roundedBox(0.012, 0.115, 0.03, 0.01, [1, 6, 1]), (x, y, z) => [x + side * 0.03 * ((y + 0.115) / 0.23) ** 2, y, z]);
-      add(group, 2, post, T(side * 0.27, 0.5, 0.0));
-      add(group, 1, roundedBox(0.028, 0.012, 0.05, 0.01), T(side * 0.235, 0.39, 0.0));
-      add(group, 1, roundedBox(0.042, 0.02, 0.15, 0.018, [1, 1, 4]), T(side * 0.3, 0.63, 0.02));
+      add(group, 1, roundedBox(0.016, 0.115, 0.032, 0.012), T(side * 0.3, 0.5, 0.0));
+      add(group, 1, roundedBox(0.04, 0.012, 0.05, 0.01), T(side * 0.265, 0.39, 0.0));
+      add(group, 2, roundedBox(0.018, 0.02, 0.006, 0.005), T(side * 0.3, 0.56, 0.034));
+      add(group, 1, roundedBox(0.046, 0.022, 0.16, 0.02, [1, 1, 4]), T(side * 0.3, 0.635, 0.02));
     }
   }
   buildChair();
 
   // ---------- WebGL ----------
   const VS = `
-    attribute vec3 aP; attribute vec3 aN; attribute vec2 aT;
+    attribute vec3 aP; attribute vec3 aN; attribute vec3 aT;
     uniform mat4 uM; uniform mat4 uVP;
-    varying vec3 vW; varying vec3 vN; varying vec2 vT;
+    varying vec3 vW; varying vec3 vN; varying vec3 vT;
     void main() {
       vec4 w = uM * vec4(aP, 1.0);
       vW = w.xyz; vN = (uM * vec4(aN, 0.0)).xyz; vT = aT;
@@ -266,8 +283,9 @@
     }`;
   const FS = `
     precision highp float;
-    varying vec3 vW; varying vec3 vN; varying vec2 vT;
-    uniform vec3 uCol; uniform vec3 uCam; uniform vec3 uGold; uniform float uMat;
+    varying vec3 vW; varying vec3 vN; varying vec3 vT;
+    uniform vec3 uCol; uniform vec3 uCol2; uniform vec3 uCam; uniform vec3 uGold; uniform float uMat;
+    uniform sampler2D uLogo;
     vec3 env(vec3 r) {
       float h = r.y;
       vec3 sky = mix(vec3(0.42, 0.44, 0.45), vec3(0.95), smoothstep(0.0, 0.7, h));
@@ -278,7 +296,7 @@
     }
     void main() {
       if (uMat > 2.5) {
-        float d = length(vT);
+        float d = length(vT.xy);
         float core = pow(clamp(1.0 - d, 0.0, 1.0), 2.2);
         float halo = exp(-pow((d - 0.72) * 5.0, 2.0)) * 0.22;
         gl_FragColor = vec4(uGold * halo, core * 0.55 + halo * 0.4);
@@ -297,12 +315,44 @@
       vec3 H1 = normalize(L1 + V);
       vec3 c;
       if (uMat < 0.5) {
-        float line = 0.0;
-        if (vT.y > 0.5) line = smoothstep(0.38, 0.5, abs(fract(vT.x) - 0.5));
-        vec3 base = uCol * (1.0 - 0.6 * line);
-        float spec = pow(max(dot(N, H1), 0.0), 24.0) * 0.2 * (1.0 - line);
+        // Two-tone leather: coloured, diamond-quilted centre panels framed by black bolsters,
+        // with gold double stitching, harness slots and the embroidered mark on the headrest.
+        vec3 base = uCol2;
+        float k = vT.z; float n = abs(vT.x); float s = vT.y;
+        float gold = 0.0; float groove = 0.0; float puff = 0.0;
+        if (k > 0.5 && k < 2.5) {
+          float top = k < 1.5 ? 0.13 : 0.2;
+          float bot = k < 1.5 ? -0.38 : -0.24;
+          float panel = step(n, 0.5) * step(s, top) * step(bot, s);
+          base = mix(uCol2, uCol, panel);
+          float u = vT.x * 0.25;
+          float qa = abs(fract((u + s) * 9.0) - 0.5); float qb = abs(fract((u - s) * 9.0) - 0.5);
+          groove = panel * max(smoothstep(0.44, 0.5, qa), smoothstep(0.44, 0.5, qb));
+          puff = panel * (0.5 - qa) * (0.5 - qb) * 4.0;
+          float inS = step(bot, s) * step(s, top);
+          float dash = step(fract(s * 70.0), 0.6);
+          float dashU = step(fract(u * 70.0), 0.6);
+          gold += inS * dash * (step(abs(n - 0.535), 0.011) + step(abs(n - 0.575), 0.011));
+          gold += step(n, 0.5) * dashU * (step(abs(s - top - 0.012), 0.005) + step(abs(s - bot + 0.012), 0.005));
+          if (k < 1.5) {
+            vec2 q = abs(vec2(abs(u) - 0.085, s - 0.19)) - vec2(0.014, 0.03);
+            float slot = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - 0.008;
+            base = mix(base, vec3(0.002), step(slot, 0.0));
+            gold += step(abs(slot - 0.005), 0.0022);
+            vec2 uv = vec2(u / 0.11 * 0.5 + 0.5, 0.5 - (s - 0.3) / 0.11 * 0.5);
+            if (uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0) gold += texture2D(uLogo, uv).a;
+          }
+        } else if (k > 2.5) {
+          base = uCol;
+          gold += step(abs(n - 0.86), 0.025) * step(fract(s * 70.0), 0.6);
+        }
+        gold = clamp(gold, 0.0, 1.0);
+        base *= (1.0 - 0.65 * groove) * (0.9 + 0.22 * puff);
+        float spec = pow(max(dot(N, H1), 0.0), 26.0) * 0.22 * (1.0 - groove);
         c = base * (vec3(0.14) + 0.2 * hemi + d1 * vec3(1.2, 1.12, 1.04) + d2 * 0.32)
           + spec + uGold * (d3 * 0.5 + fres * 0.22) * 0.55 + fres * 0.06;
+        vec3 thread = uGold * (0.45 + d1 * 1.1 + hemi * 0.25) + pow(max(dot(N, H1), 0.0), 18.0) * 0.5;
+        c = mix(c, thread, gold);
       } else if (uMat < 1.5) {
         float spec = pow(max(dot(N, H1), 0.0), 60.0) * 0.55;
         c = vec3(0.022) * (0.5 + hemi + d1 * 2.0) + spec + uGold * (d3 * 0.4 + fres * 0.3) * 0.45 + fres * 0.04;
@@ -348,11 +398,12 @@
     aP: gl.getAttribLocation(prog, 'aP'), aN: gl.getAttribLocation(prog, 'aN'), aT: gl.getAttribLocation(prog, 'aT'),
     uM: gl.getUniformLocation(prog, 'uM'), uVP: gl.getUniformLocation(prog, 'uVP'), uCol: gl.getUniformLocation(prog, 'uCol'),
     uCam: gl.getUniformLocation(prog, 'uCam'), uGold: gl.getUniformLocation(prog, 'uGold'), uMat: gl.getUniformLocation(prog, 'uMat'),
+    uCol2: gl.getUniformLocation(prog, 'uCol2'), uLogo: gl.getUniformLocation(prog, 'uLogo'),
   };
   function upload(g) {
-    const data = new Float32Array(g.p.length / 3 * 8);
+    const data = new Float32Array(g.p.length / 3 * 9);
     for (let v = 0; v < g.p.length / 3; v++) {
-      data.set([g.p[v * 3], g.p[v * 3 + 1], g.p[v * 3 + 2], g.n[v * 3], g.n[v * 3 + 1], g.n[v * 3 + 2], g.t[v * 2], g.t[v * 2 + 1]], v * 8);
+      data.set([g.p[v * 3], g.p[v * 3 + 1], g.p[v * 3 + 2], g.n[v * 3], g.n[v * 3 + 1], g.n[v * 3 + 2], g.t[v * 3], g.t[v * 3 + 1], g.t[v * 3 + 2]], v * 9);
     }
     const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
     const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(g.i), gl.STATIC_DRAW);
@@ -360,19 +411,36 @@
   }
   const draws = [];
   Object.entries(parts).forEach(([group, mats]) => Object.entries(mats).forEach(([mat, g]) => draws.push({ group, mat: +mat, buf: upload(g) })));
-  const floor = upload({ p: [-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1], n: [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], t: [-1, -1, 1, -1, 1, 1, -1, 1], i: [0, 1, 2, 0, 2, 3] });
+  const floor = upload({ p: [-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1], n: [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], t: [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], i: [0, 1, 2, 0, 2, 3] });
   function bind(buf) {
     gl.bindBuffer(gl.ARRAY_BUFFER, buf.vb); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, buf.ib);
-    gl.enableVertexAttribArray(loc.aP); gl.vertexAttribPointer(loc.aP, 3, gl.FLOAT, false, 32, 0);
-    gl.enableVertexAttribArray(loc.aN); gl.vertexAttribPointer(loc.aN, 3, gl.FLOAT, false, 32, 12);
-    gl.enableVertexAttribArray(loc.aT); gl.vertexAttribPointer(loc.aT, 2, gl.FLOAT, false, 32, 24);
+    gl.enableVertexAttribArray(loc.aP); gl.vertexAttribPointer(loc.aP, 3, gl.FLOAT, false, 36, 0);
+    gl.enableVertexAttribArray(loc.aN); gl.vertexAttribPointer(loc.aN, 3, gl.FLOAT, false, 36, 12);
+    gl.enableVertexAttribArray(loc.aT); gl.vertexAttribPointer(loc.aT, 3, gl.FLOAT, false, 36, 24);
   }
   gl.uniform3fv(loc.uGold, linear('#d4af37'));
+  gl.uniform3fv(loc.uCol2, linear('#141416'));
+  // The Decoture mark, stitched into the headrest: drawn once into a texture.
+  const logoCanvas = document.createElement('canvas');
+  logoCanvas.width = logoCanvas.height = 256;
+  const lc = logoCanvas.getContext('2d');
+  lc.translate(128, 128); lc.scale(1.25, 1.25); lc.translate(-480, -460);
+  lc.lineWidth = 9; lc.lineCap = 'round'; lc.lineJoin = 'round'; lc.strokeStyle = '#fff';
+  M.MARK_SVG.match(/ d="[^"]+"/g).forEach((d) => lc.stroke(new Path2D(d.slice(4, -1))));
+  const logoTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, logoTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, logoCanvas);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.uniform1i(loc.uLogo, 0);
   gl.enable(gl.DEPTH_TEST);
   gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
   // ---------- Camera and layout ----------
-  const EYE = [0, 0.05, 3.4];
+  const EYE = [0, 0.05, 3.5];
+  const CY = 0.68; // chair centre height, the point it turns around
   const FOV = 30 * Math.PI / 180;
   let W = 0; let Hh = 0; let VP; let portrait = false;
   function resize() {
@@ -395,9 +463,9 @@
 
   function chairMatrix(p, idle) {
     let fx = p.fx; let fy = p.fy; let s = p.s;
-    if (portrait) { fx *= 0.1; fy = 0.36 + p.ex * 0.04; s *= 0.6 - p.ex * 0.08; }
+    if (portrait) { fx *= 0.1; fy = 0.4 + p.ex * 0.02; s *= 0.55 - p.ex * 0.06; }
     const halfW = halfH * (W / Hh);
-    return chain(T(fx * halfW, fy * halfH + idle.bob, 0), RX(p.rx + idle.rx), RY(p.ry + idle.ry), S(s), T(0, -0.62, 0));
+    return chain(T(fx * halfW, fy * halfH + idle.bob, 0), RX(p.rx + idle.rx), RY(p.ry + idle.ry), S(s), T(0, -CY, 0));
   }
 
   function colourAt(c) {
@@ -420,9 +488,9 @@
     gl.uniformMatrix4fv(loc.uVP, false, VP);
     gl.uniform3fv(loc.uCam, EYE);
     // Floor glow and shadow, under the chair but not turning with it.
-    const s = (portrait ? 0.6 - cur.ex * 0.08 : 1) * cur.s;
+    const s = (portrait ? 0.55 - cur.ex * 0.06 : 1) * cur.s;
     const fx = (portrait ? cur.fx * 0.1 : cur.fx) * halfH * (W / Hh);
-    const fy = (portrait ? 0.36 + cur.ex * 0.04 : cur.fy) * halfH - 0.62 * s - ex * 0.2 * s;
+    const fy = (portrait ? 0.4 + cur.ex * 0.02 : cur.fy) * halfH - CY * s - ex * 0.2 * s;
     gl.enable(gl.BLEND); gl.depthMask(false);
     gl.uniform1f(loc.uMat, 3);
     gl.uniformMatrix4fv(loc.uM, false, chain(T(fx, fy, 0), RX(cur.rx * 0.6), S(0.62 * s, 1, 0.62 * s)));
