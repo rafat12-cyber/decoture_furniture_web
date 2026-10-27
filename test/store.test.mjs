@@ -91,8 +91,8 @@ test('serves the storefront and a live catalog from the database', async () => {
   const js = await call('/assets/js/catalog.js');
   assert.match(js.data, /"live": true/);
   const { data } = await call('/api/catalog');
-  assert.equal(data.products.length, 56);
-  assert.equal(data.products.reduce((n, p) => n + p.variants.length, 0), 92);
+  assert.equal(data.products.length, 52);
+  assert.equal(data.products.reduce((n, p) => n + p.variants.length, 0), 82);
 });
 
 test('never serves the database, data files, server code or git', async () => {
@@ -110,13 +110,13 @@ test('places an order with server prices and holds the stock', async () => {
   const r = await call('/api/orders', { method: 'POST', body: order({ items: [{ id: '6801a-silver', qty: 2, price: 1 }] }) });
   assert.equal(r.status, 201);
   assert.match(r.data.order.id, /^DC-\d{6}-[A-Z0-9]{4}$/);
-  assert.equal(r.data.order.subtotal, 17800, 'price comes from the database, not the request');
-  assert.equal(r.data.order.items[0].price, 8900);
+  assert.equal(r.data.order.subtotal, 75000, 'price comes from the database, not the request');
+  assert.equal(r.data.order.items[0].price, 37500);
   assert.equal(r.data.order.phone, undefined, 'phone is not echoed in the public view');
   assert.equal(await stockOf('6801a-silver'), before - 2);
   const mail = await waitFor(() => mails.find((m) => m.includes('Subject: New order')));
   assert.ok(mail, 'the shop is emailed');
-  assert.match(Buffer.from(mail.split('\n\n')[1].replace(/\s/g, ''), 'base64').toString(), /2 x 6801A Silver @ Tk 8,900/);
+  assert.match(Buffer.from(mail.split('\n\n')[1].replace(/\s/g, ''), 'base64').toString(), /2 x 6801A Silver @ Tk 37,500/);
 });
 
 test('refuses to sell more than is in stock', async () => {
@@ -126,7 +126,7 @@ test('refuses to sell more than is in stock', async () => {
   assert.equal(r.data.variant, '6801b-silver');
   assert.equal(r.data.available, stock);
   assert.equal(await stockOf('6801b-silver'), stock, 'nothing is taken when the order fails');
-  const out = await call('/api/orders', { method: 'POST', body: order({ items: [{ id: 'a03-black', qty: 1 }] }) });
+  const out = await call('/api/orders', { method: 'POST', body: order({ items: [{ id: 'cds-155-m-pvc-base', qty: 1 }] }) });
   assert.equal(out.status, 409, 'out of stock');
 });
 
@@ -270,7 +270,7 @@ test('limits how many orders one connection can place', async () => {
   const srv = http.createServer(app);
   await new Promise((r) => srv.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${srv.address().port}/api/orders`;
-  const post = () => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(order({ items: [{ id: 'c-758-black', qty: 1 }] })) });
+  const post = () => fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(order({ items: [{ id: 'c-2301-full-black', qty: 1 }] })) });
   assert.equal((await post()).status, 201);
   assert.equal((await post()).status, 201);
   assert.equal((await post()).status, 429);

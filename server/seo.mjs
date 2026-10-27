@@ -6,7 +6,8 @@ const PAGES = ['', 'shop.html', 'offices.html', 'about.html', 'contact.html'];
 const PRIVATE = ['cart.html', 'checkout.html', 'order.html', 'track.html'];
 const DEFAULT_IMAGE = 'assets/img/brand/catalogue.jpg';
 const BUSINESS = {
-  name: 'Decoture',
+  name: 'DECOTURE',
+  parent: 'Sigma Synchrony',
   phone: '+880 1791 978775',
   street: '57/60, Uttar Senpara Parbata 11, Mirpur',
   city: 'Dhaka',
@@ -46,12 +47,12 @@ function productHead(base, catalog, slug) {
   if (!p) return null;
   const coll = catalog.collections[p.collection] || { name: 'Office' };
   const prices = p.variants.map(price).filter((n) => n != null);
-  const images = p.variants.map((v) => v.image).filter(Boolean).map((i) => `${base}/${i}`);
+  const images = p.variants.flatMap((v) => v.gallery || [v.image]).filter(Boolean).map((i) => `${base}/${i}`);
   const inStock = p.variants.some((v) => v.stock > 0);
   const colours = p.variants.map((v) => v.colour).join(', ');
   const description = `${p.description} ${p.variants.length > 1 ? `In ${colours}.` : ''} ${prices.length ? `From ৳${Math.min(...prices).toLocaleString('en-IN')}.` : ''} Cash on delivery in Bangladesh.`.replace(/\s+/g, ' ').trim();
   return {
-    title: `${p.name} ${coll.name} chair · Decoture`,
+    title: `${p.name} ${coll.name} chair · DECOTURE – A brand of Sigma Synchrony`,
     description,
     image: images[0] || `${base}/${DEFAULT_IMAGE}`,
     type: 'product',
@@ -82,6 +83,7 @@ const storeData = (base) => ({
   '@context': 'https://schema.org',
   '@type': 'FurnitureStore',
   name: BUSINESS.name,
+  parentOrganization: { '@type': 'Organization', name: BUSINESS.parent },
   url: `${base}/`,
   logo: `${base}/assets/img/logo/lockup.svg`,
   image: `${base}/assets/img/brand/showroom-sign.jpg`,
@@ -99,7 +101,7 @@ export function decorateHtml(html, { base, page, query, catalog }) {
   const descMatch = /<meta name="description" content="([^"]*)">/.exec(html);
   // Text read from the page is already HTML-escaped; text from the catalog is escaped on output.
   const unescape = (t) => t.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-  let title = titleMatch ? unescape(titleMatch[1]) : 'Decoture';
+  let title = titleMatch ? unescape(titleMatch[1]) : 'DECOTURE – A brand of Sigma Synchrony';
   let description = descMatch ? unescape(descMatch[1]) : '';
   let image = `${base}/${DEFAULT_IMAGE}`;
   let type = 'website';
@@ -116,7 +118,7 @@ export function decorateHtml(html, { base, page, query, catalog }) {
   }
   if (page === 'shop.html' && catalog.collections[query.get('collection')]) {
     const c = catalog.collections[query.get('collection')];
-    title = `${c.name} chairs · Decoture`;
+    title = `${c.name} chairs · DECOTURE – A brand of Sigma Synchrony`;
     description = `${c.blurb} Imported ${c.name.toLowerCase()} chairs from Decoture in Dhaka, with cash on delivery.`;
     path = `shop.html?collection=${query.get('collection')}`;
   }
@@ -125,7 +127,7 @@ export function decorateHtml(html, { base, page, query, catalog }) {
   const url = `${base}/${path}`;
   const tags = [
     PRIVATE.includes(page) ? '<meta name="robots" content="noindex">' : `<link rel="canonical" href="${attr(url)}">`,
-    '<meta property="og:site_name" content="Decoture">',
+    '<meta property="og:site_name" content="DECOTURE – A brand of Sigma Synchrony">',
     `<meta property="og:type" content="${type}">`,
     `<meta property="og:title" content="${attr(title)}">`,
     description ? `<meta property="og:description" content="${attr(description)}">` : '',

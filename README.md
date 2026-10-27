@@ -1,6 +1,6 @@
 # Decoture store
 
-The online shop for **Decoture**, a contemporary furniture and lifestyle brand in Dhaka. It sells the imported chair range from the stock list of 20 October 2026: 56 models in 92 colourways.
+The online shop for **DECOTURE, a brand of Sigma Synchrony**, a contemporary furniture and lifestyle brand in Dhaka. It sells the imported chair range from the corporate price list of 27 October 2026: 52 models in 82 colourways, in five categories (Executive, Ergonomic, Task & office, Conference & visitor, Training).
 
 It has three parts:
 
@@ -117,6 +117,13 @@ docker run -d -p 8080:8080 -v decoture-data:/data -e ADMIN_PASSWORD=... -e TRUST
 
 Put Nginx or Caddy in front for HTTPS.
 
+**Updating a live store (cPanel, e.g. HostNin):**
+1. Merge the pull request on GitHub, then download the ZIP of `main`.
+2. In cPanel File Manager, upload the ZIP to the app folder (`~/decoture`) and extract it over the old files.
+3. In **Setup Node.js App**, press **Restart**.
+
+Orders, quotes, admin accounts and uploaded photos live in `DATA_DIR`, outside the app folder, so they are not touched. If `data/stock.csv` changed, the new price list is loaded on restart (see Product data).
+
 **Backups:** copy `decoture.db` and the `uploads/` folder from `DATA_DIR`. One file holds all orders, products and quotes.
 
 **Static hosting** (GitHub Pages, Netlify) still works for a demo. Without the server:
@@ -135,20 +142,22 @@ Put Nginx or Caddy in front for HTTPS.
 
 ## Product data
 
-On a fresh database, products come from `data/stock.csv`, one row per colourway:
+Products come from `data/stock.csv`, one row per colourway:
 
 | Column | Meaning |
 |---|---|
+| `sl`, `code` | Row number and Decoture product code from the price list |
 | `model`, `colour` | Rows with the same model become one product with colour options |
-| `collection` | `executive`, `ergonomic`, `task` or `training` |
+| `collection` | `executive`, `ergonomic`, `task`, `conference` or `training`; each is a category in the Shop menu |
 | `stock` | Units in the warehouse. 10 or fewer shows "Only N left"; 0 shows "Out of stock" |
 | `warranty_years` | 2 for most chairs, 1 for CDS conference chairs |
-| `image` | File name in `assets/img/products/` |
+| `image` | Main photo, a file name in `assets/img/products/` |
+| `gallery` | More angles of the same colourway, separated by `|`; shown as thumbnails on the product page |
 | `price_bdt`, `sale_price_bdt` | Price in taka. A sale price shows the regular price struck through |
 
-After the first start, make changes in the admin panel instead: the database is the source of truth. `npm run build:catalog` rebuilds the static `catalog.js` from the CSV for static hosting.
+The server loads the CSV into the database on first start, and again on any start where the file has changed (a new price list). Then every row in the file is added or overwritten, including stock and price, and colourways no longer in the file are hidden from the shop (never deleted, so old orders keep their details). Between price lists the database is the source of truth: edit stock and prices in the admin panel, and those edits stay until the next price list is uploaded. `npm run build:catalog` rebuilds the static `catalog.js` from the CSV for static hosting.
 
-Every chair is currently priced at ৳8,900 as a placeholder.
+Prices are the website rate from the price list, or the corporate price where there is no website rate. Rows with neither show "Price on request". The Dealer price is never shown.
 
 ## Code map
 
