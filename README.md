@@ -33,7 +33,7 @@ Run the tests with `npm test`.
 | Orders | Filter by status, open an order, call or WhatsApp the customer, change the status (New, Confirmed, Shipped, Delivered, Cancelled), leave a message the customer sees on their tracking page, keep an internal note, download all orders as CSV |
 | Products & stock | Edit price, sale price and stock for each colourway, hide a chair from the store, replace its photo, add a new model or colour |
 | Office quotes | Requests from the "For offices" page and the home page, with a status for each |
-| Settings | Change the admin password (this logs out other devices) |
+| Settings | Delivery charges by zone, whether online payment is on, change the admin password (this logs out other devices) |
 
 How stock works:
 - Placing an order takes the chairs out of stock straight away, so two customers can't buy the last chair.
@@ -42,10 +42,37 @@ How stock works:
 
 ## How customers order
 
-1. They add chairs to the cart and check out with **cash on delivery**.
-2. The order is saved on the server and they get an order number like `DC-261027-AB12`.
-3. They can follow it on `/track.html` with that number and their mobile number.
-4. The team sees the order in the admin panel, calls the customer and moves it through the statuses.
+1. They add chairs to the cart and choose their district at checkout, which shows the delivery charge and the total.
+2. They pay with **cash on delivery**, or **online** with bKash, Nagad, Rocket or a card through SSLCommerz (when it is set up).
+3. The order is saved on the server and they get an order number like `DC-261027-AB12`.
+4. They can follow it on `/track.html` with that number and their mobile number.
+5. The team sees the order in the admin panel, calls the customer and moves it through the statuses.
+
+### Delivery charges
+
+There are three zones: Inside Dhaka, Near Dhaka (Gazipur, Narayanganj, Narsingdi, Manikganj, Munshiganj), and Outside Dhaka for every other district.
+
+- Each zone has a charge for the first chair and a charge for each extra chair.
+- You can also set an order amount above which delivery is free.
+- Change them in **Admin > Settings**.
+
+The starting values are placeholders: ৳300 / ৳500 / ৳800 for the first chair, and ৳100 / ৳150 / ৳200 for each extra chair.
+
+### Online payment (SSLCommerz)
+
+1. Get a merchant account at [sslcommerz.com](https://sslcommerz.com). For testing, a free sandbox account at [developer.sslcommerz.com](https://developer.sslcommerz.com/registration/) works.
+2. Set `SSLCOMMERZ_STORE_ID`, `SSLCOMMERZ_STORE_PASSWORD` and `SITE_URL` on the server. Without `SSLCOMMERZ_LIVE=1`, payments go to the sandbox and no real money moves.
+3. Checkout then offers "bKash, Nagad, Rocket or card".
+
+How a payment works:
+
+- The customer pays on the SSLCommerz page and comes back to their order page.
+- The server checks every payment with SSLCommerz's validation API, including the transaction ID, the amount and the currency, before it marks an order paid. The browser's word is never enough.
+- SSLCommerz also calls `/api/pay/sslcommerz/ipn`. You can set that address as the IPN URL in the merchant panel.
+- If a payment fails or the customer leaves, the chairs stay held. From the order or tracking page, the customer can pay again or switch to cash on delivery.
+- Unpaid online orders are cancelled after 24 hours, and their chairs go back on sale.
+- Refunds are made in the SSLCommerz merchant panel.
+- Orders with a chair priced on request can only be paid on delivery.
 
 Email is optional. When SMTP is set up:
 - the shop gets an email for each new order and quote request;
@@ -65,6 +92,8 @@ Email is optional. When SMTP is set up:
 | `SMTP_USER`, `SMTP_PASS` | | Mail login. For Gmail, use an app password |
 | `MAIL_FROM` | `SMTP_USER` | Sender address |
 | `MAIL_TO` | `MAIL_FROM` | Where new orders and quote requests are sent |
+| `SSLCOMMERZ_STORE_ID`, `SSLCOMMERZ_STORE_PASSWORD` | | Turns on online payment |
+| `SSLCOMMERZ_LIVE` | off (sandbox) | Set to `1` to take real payments |
 
 ## Putting it online
 
@@ -74,7 +103,7 @@ Any host that runs Node 22 and keeps files on a disk will work.
 1. Create a new **Web Service** from this GitHub repo.
 2. Set the build command to `true` and the start command to `npm start`.
 3. Add a **Disk** mounted at `/var/data`.
-4. Set `DATA_DIR=/var/data`, `TRUST_PROXY=1`, `ADMIN_PASSWORD`, `SITE_URL` and the mail settings.
+4. Set `DATA_DIR=/var/data`, `TRUST_PROXY=1`, `ADMIN_PASSWORD`, `SITE_URL`, the mail settings and, for online payment, the SSLCommerz settings.
 5. Point your domain at the service from Render's Custom Domains page.
 
 **Railway** works the same way: add a volume, then set `DATA_DIR` to its mount path.
@@ -94,6 +123,15 @@ Put Nginx or Caddy in front for HTTPS.
 - the catalog comes from `assets/js/catalog.js`;
 - checkout falls back to sending the order on WhatsApp or by email;
 - there is no admin panel or order tracking.
+
+## Search engines and sharing
+
+- Every page the server sends has a canonical address and Open Graph tags, so links shared on Facebook and WhatsApp show a title, a description and a picture. Set `SITE_URL` so these use your domain.
+- Product pages get their real title, description and schema.org `Product` data (price in BDT, stock) written in by the server.
+- The home page carries the shop's `FurnitureStore` details (address, phone).
+- `/sitemap.xml` lists every page, collection and chair, and `/robots.txt` points to it.
+- The cart, checkout, order and tracking pages, and the admin panel, are kept out of search results.
+- After going live, add the site to [Google Search Console](https://search.google.com/search-console) and submit `https://your-domain/sitemap.xml`.
 
 ## Product data
 
@@ -119,8 +157,8 @@ Every chair is currently priced at ৳8,900 as a placeholder.
 | `index.html`, `shop.html`, `product.html`, `cart.html`, `checkout.html`, `order.html`, `track.html`, `offices.html`, `about.html`, `contact.html` | Storefront pages |
 | `assets/js/` | Storefront scripts: `app.js` (shared), `motion.js` (animation), `chair3d.js` (3D chair), one script per page |
 | `admin/` | Admin panel |
-| `server/` | `server.mjs` starts the server; `app.mjs` handles routes and security; `db.mjs` is the database; `auth.mjs` handles passwords and sessions; `mail.mjs` sends email |
-| `lib/catalog.mjs` | Builds the catalog shape, used by both the server and the static build |
+| `server/` | `server.mjs` starts the server; `app.mjs` handles routes and security; `db.mjs` is the database; `auth.mjs` handles passwords and sessions; `mail.mjs` sends email; `sslcommerz.mjs` takes online payments; `seo.mjs` writes search and sharing tags, the sitemap and robots.txt |
+| `lib/catalog.mjs`, `lib/delivery.mjs` | The catalog shape and the delivery zones, used by both the server and the static build |
 | `test/` | Server tests (`npm test`) |
 
 ## Security notes
@@ -140,6 +178,5 @@ Colours and type come from the Decoture brand guidelines: Signature Gold `#D4AF3
 
 ## Next
 
-- Online payment through SSLCommerz (bKash, Nagad, cards).
-- Delivery zones and charges, SEO and analytics.
+- Analytics (for example Plausible or Google Analytics), once the domain is set.
 - Customer accounts, and furniture beyond chairs.

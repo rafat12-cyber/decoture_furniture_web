@@ -286,6 +286,7 @@ ul, ol { padding: 0; list-style: none; }
 .spec dt { color: var(--ink-soft); }
 .note-box { border-left: 2px solid var(--gold); padding: 4px 0 4px 16px; font-size: 15px; color: var(--ink-soft); }
 .note-box strong { color: var(--ink); font-weight: 500; }
+.note-box--warn { border-left-color: var(--danger); }
 .warranty-figure { display: grid; grid-template-columns: 120px 1fr; gap: 16px; align-items: center; font-size: 15px; }
 .warranty-figure img { width: 120px; height: 90px; object-fit: cover; }
 .related { padding: 0 var(--margin) 120px; }

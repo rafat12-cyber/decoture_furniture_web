@@ -18,6 +18,16 @@
   // On a static host (or the demo) orders fall back to WhatsApp and email.
   const live = !!catalog.live;
   const products = catalog.products;
+  // Delivery charges by district (same rule as lib/delivery.mjs, which the server charges by).
+  const delivery = catalog.delivery || { zones: [{ id: 'all', name: 'Delivery', districts: [], fee: 0, extra: 0, days: '' }], freeOver: null };
+  const districts = catalog.districts || ['Dhaka'];
+  const onlinePayment = live && !!(catalog.payments && catalog.payments.online);
+  function deliveryFor(district, chairs, subtotal) {
+    const zone = delivery.zones.find((z) => z.districts.includes(district)) || delivery.zones[delivery.zones.length - 1];
+    const free = delivery.freeOver != null && subtotal >= delivery.freeOver;
+    return { zone, free, fee: free || chairs < 1 ? 0 : zone.fee + zone.extra * (chairs - 1) };
+  }
+  const lowestDelivery = Math.min(...delivery.zones.map((z) => z.fee));
   const bySlug = new Map(products.map((p) => [p.slug, p]));
   const byVariant = new Map();
   products.forEach((p) => p.variants.forEach((v) => byVariant.set(v.id, { product: p, variant: v })));
@@ -268,15 +278,22 @@
       </div>`;
     }).join('');
   }
-  function totalsHTML() {
+  // Without a district (cart, drawer) the delivery line shows the lowest charge; at checkout it
+  // shows the real one for the chosen district.
+  function totalsHTML(district) {
     const t = cart.totals();
+    const d = district ? deliveryFor(district, t.count, t.subtotal) : null;
+    const freeNote = delivery.freeOver != null && !d ? `<p class="small soft">Free delivery on orders of ${money(delivery.freeOver)} or more.</p>` : '';
     return `
       <div class="totals">
         <div><span>Subtotal (${t.count} ${t.count === 1 ? 'chair' : 'chairs'})</span><span>${money(t.subtotal)}</span></div>
         ${t.unpriced ? `<div><span>Priced on confirmation</span><span>${t.unpriced}</span></div>` : ''}
-        <div><span>Delivery</span><span class="soft">Confirmed by phone</span></div>
-        <div class="grand"><span>Total</span><span>${money(t.subtotal)}${t.unpriced ? ' +' : ''}</span></div>
-      </div>`;
+        ${d
+          ? `<div><span>Delivery <small class="soft">${esc(d.zone.name)}${d.zone.days ? `, ${esc(d.zone.days)}` : ''}</small></span><span>${d.free || !d.fee ? 'Free' : money(d.fee)}</span></div>
+             <div class="grand"><span>Total</span><span>${money(t.subtotal + d.fee)}${t.unpriced ? ' +' : ''}</span></div>`
+          : `<div><span>Delivery</span><span class="soft">${lowestDelivery > 0 ? `From ${money(lowestDelivery)}` : 'Free'}</span></div>
+             <div class="grand"><span>Subtotal</span><span>${money(t.subtotal)}${t.unpriced ? ' +' : ''}</span></div>`}
+      </div>${freeNote}`;
   }
   function bindLineItems(root) {
     if (!root) return;
@@ -305,7 +322,7 @@
     }
     body.innerHTML = lineItemsHTML();
     foot.innerHTML = `${totalsHTML()}
-      <a class="button button--block" href="checkout.html">Checkout · cash on delivery</a>
+      <a class="button button--block" href="checkout.html">Checkout</a>
       <a class="button button--ghost button--block" href="cart.html">View cart</a>`;
   }
   function updateCount() {
@@ -378,7 +395,7 @@
   const orders = {
     all: () => storage.get(ORDERS_KEY, []),
     get: (id) => orders.all().find((o) => o.id === id),
-    save(order) { const list = orders.all(); list.unshift(order); storage.set(ORDERS_KEY, list.slice(0, 20)); },
+    save(order) { const list = orders.all().filter((o) => o.id !== order.id); list.unshift(order); storage.set(ORDERS_KEY, list.slice(0, 20)); },
     newId() {
       const d = new Date();
       const ymd = `${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
@@ -391,7 +408,8 @@
         ...o.items.map((i) => `• ${i.qty} × ${i.sku}${i.price != null ? ` @ ${money(i.price)}` : ''}`),
         '',
         `Subtotal: ${money(o.subtotal)}${o.unpriced ? ' + items priced on confirmation' : ''}`,
-        `Delivery: ${o.delivery}`,
+        `Delivery: ${o.delivery}${o.deliveryFee != null ? ` (${o.deliveryFee ? money(o.deliveryFee) : 'free'})` : ''}`,
+        o.total != null ? `Total: ${money(o.total)}${o.unpriced ? ' +' : ''}` : null,
         `Payment: ${o.payment}`,
         '',
         `Name: ${o.name}`,
@@ -420,6 +438,7 @@
     return data;
   }
   const STATUS_LABELS = { new: 'Received', confirmed: 'Confirmed', shipped: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled' };
+  const paymentLabel = (o) => ({ paid: `${o.payment}, paid`, pending: `${o.payment}, waiting for payment`, failed: `${o.payment}, not paid yet` }[o.paymentStatus] || o.payment);
 
   // Follow an external link from a submit handler (window.open is blocked in some embedded views).
   const openExternal = (url) => {
@@ -440,6 +459,7 @@
 
   window.Decoture = {
     CONFIG, catalog, products, bySlug, byVariant, cart, orders, FAMILIES, familyOf, live, api, STATUS_LABELS, formatDate,
+    delivery, districts, deliveryFor, onlinePayment, paymentLabel,
     money, priceLabel, variantPrice, productFromPrice, stockState, productStock, firstImage, productUrl, esc,
     cardHTML, lineItemsHTML, totalsHTML, bindLineItems, reveal, toast, openDrawer, openExternal, whatsappLink, mailLink, PLACEHOLDER,
   };
