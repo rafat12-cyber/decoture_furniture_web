@@ -314,12 +314,17 @@
     observe();
     intro().then(() => {
       ready = true;
+      markReady();
       root.classList.add('is-ready');
       observe();
     });
   }
 
+  let markReady;
+  const whenReady = new Promise((r) => { markReady = r; });
+
   window.Motion = {
+    whenReady,
     reduce, finePointer, MARK_SVG, observe, split, magnetic, tilt, fly,
     addScrub: (fn) => { scrubbers.add(fn); requestFrame(); }, progressOf, pinProgress, clamp, lerp,
     refresh(scope) { observe(scope); magnetic(scope); tilt(scope); },

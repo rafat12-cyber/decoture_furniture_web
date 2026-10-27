@@ -508,20 +508,68 @@ textarea.input { min-height: 110px; resize: vertical; }
 /* ---------- Fly to cart ---------- */
 .fly-ghost { position: fixed; z-index: 96; pointer-events: none; object-fit: contain; background: var(--paper); margin: 0; }
 
-/* ---------- Hero ---------- */
-.hero { position: relative; min-height: 100svh; display: grid; align-items: end; overflow: hidden; isolation: isolate; }
-.hero-media { position: absolute; inset: -8% 0; z-index: -2; }
-.hero-media img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }
-@media (prefers-reduced-motion: no-preference) {
-  .js .hero-media { animation: settle 2600ms var(--ease-out) both; }
+/* ---------- Scene: the 3D chair ---------- */
+.scene { position: relative; height: 560vh; background: var(--charcoal); }
+.scene-sticky { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; isolation: isolate; }
+.scene-glow {
+  position: absolute; inset: 0; z-index: -1;
+  background: radial-gradient(circle at var(--gx, 73%) var(--gy, 54%), rgba(212, 175, 55, 0.16) 0%, rgba(212, 175, 55, 0.05) 26%, rgba(28, 35, 33, 0) 46%); /* taste-skill-ignore: spotlight behind the chair */
+  transition: background-position 600ms var(--ease-out);
 }
-@keyframes settle { from { transform: scale(1.18); filter: brightness(0.4); } to { transform: none; filter: none; } }
-.hero::before {
-  /* a neutral scrim over the photograph so the type reads */
-  content: ''; position: absolute; inset: 0; z-index: -1;
-  background: linear-gradient(180deg, rgba(28, 35, 33, 0.6) 0%, rgba(28, 35, 33, 0.35) 30%, rgba(28, 35, 33, 0.82) 62%, rgba(28, 35, 33, 0.96) 100%); /* taste-skill-ignore: scrim over a photo */
+.scene-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.scene-panel {
+  position: absolute; left: var(--margin); bottom: clamp(72px, 13vh, 140px);
+  width: min(36rem, 44vw); display: grid; gap: 20px; justify-items: start;
+  opacity: 0; visibility: hidden; transition: opacity 500ms var(--ease-out), visibility 0s linear 500ms;
 }
-.hero-content { padding-top: 140px; padding-bottom: clamp(48px, 8vh, 96px); display: grid; gap: clamp(28px, 4vw, 48px); }
+.scene-panel--hero { width: min(52rem, 52vw); gap: clamp(20px, 3vw, 32px); }
+.scene-panel--right { left: auto; right: var(--margin); }
+.scene-panel.is-active { opacity: 1; visibility: visible; transition: opacity 500ms var(--ease-out), visibility 0s; }
+.scene-panel > * { transform: translateY(28px); opacity: 0; transition: transform 800ms var(--ease-out), opacity 600ms var(--ease-out); }
+.scene-panel.is-active > * { transform: none; opacity: 1; }
+.scene-panel.is-active > :nth-child(2) { transition-delay: 90ms; }
+.scene-panel.is-active > :nth-child(3) { transition-delay: 180ms; }
+.scene-panel.is-active > :nth-child(4) { transition-delay: 270ms; }
+.scene-panel--hero > .hero-title { transform: none; opacity: 1; }
+.scene-text { max-width: 34ch; font-size: clamp(1.0625rem, 0.95rem + 0.4vw, 1.3125rem); line-height: 1.45; color: var(--ink-soft); }
+.scene-colour { display: flex; align-items: center; gap: 16px; font-size: 1.125rem; }
+.scene-dots { display: flex; gap: 8px; }
+.scene-dots i { width: 18px; height: 18px; border-radius: 50%; background: var(--c); border: 1px solid rgba(244, 239, 230, 0.25); outline: 1px solid transparent; outline-offset: 3px; transition: transform 300ms var(--ease-out), outline-color 300ms var(--ease-out); }
+.scene-dots i[aria-current="true"] { transform: scale(1.3); outline-color: var(--gold); }
+.scene-labels { position: absolute; inset: 0; pointer-events: none; }
+.scene-label {
+  position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 10px;
+  font-size: 0.9375rem; white-space: nowrap; color: var(--cream);
+  opacity: 0; transition: opacity 400ms var(--ease-out);
+}
+.scene-label::before { content: ''; width: 9px; height: 9px; margin-left: -4px; border-radius: 50%; background: var(--gold); }
+.scene-label.is-on { opacity: 1; }
+.scene-meter {
+  position: absolute; left: 50%; bottom: 32px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 14px; font-size: 0.8125rem; color: var(--ink-soft);
+}
+.scene-meter i { position: relative; width: 160px; height: 3px; border-radius: 2px; background: rgba(244, 239, 230, 0.2); overflow: hidden; }
+.scene-meter b { position: absolute; inset: 0; background: var(--gold); transform-origin: 0 50%; transform: scaleX(0); }
+.scene .hero-scroll { transition: opacity 400ms ease; }
+.scene:not(.is-start) .hero-scroll { opacity: 0; }
+/* Without WebGL or with reduced motion: one screen, the chair (or the brand photo) still. */
+.scene--static { height: auto; }
+.scene--static .scene-sticky { position: relative; height: 100svh; min-height: 620px; }
+.scene--static .scene-panel:not(.scene-panel--hero), .scene--static .scene-meter, .scene--static .scene-labels { display: none; }
+.scene--flat .scene-glow { background: url("../img/brand/hang-tags.jpg") center / cover no-repeat; opacity: 0.45; }
+@media (max-width: 860px) {
+  .scene { height: 520vh; }
+  .scene-panel, .scene-panel--hero, .scene-panel--right {
+    left: var(--margin); right: var(--margin); width: auto; bottom: 72px;
+  }
+  .scene-sticky::after {
+    content: ''; position: absolute; inset: 45% 0 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(180deg, rgba(28, 35, 33, 0) 0%, rgba(28, 35, 33, 0.85) 45%, var(--charcoal) 100%); /* taste-skill-ignore: scrim under the text */
+  }
+  .scene-sticky { z-index: 0; }
+  .scene-meter { bottom: 24px; }
+}
+
 .hero-title { font-size: clamp(3.25rem, 0.8rem + 7.4vw, 9.5rem); line-height: 0.92; font-weight: 300; letter-spacing: -0.05em; }
 .hero-title .wi { transition-delay: calc(var(--i, 0) * 140ms + 150ms) !important; }
 .hero-foot { display: flex; flex-wrap: wrap; gap: 24px 64px; align-items: end; justify-content: space-between; }
@@ -529,7 +577,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 .hero-actions { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
 .button--lg { min-height: 58px; padding: 0 30px; font-size: 1.0625rem; }
 .button[data-magnetic] { transition: transform 300ms var(--ease-out), background-color var(--t-hover) ease, color var(--t-hover) ease, border-color var(--t-hover) ease; }
-.hero-scroll { position: absolute; right: var(--margin); bottom: 32px; width: 1px; height: 72px; background: rgba(244, 239, 230, 0.2); overflow: hidden; }
+.hero-scroll { position: absolute; right: var(--margin); bottom: 32px; z-index: 1; width: 1px; height: 72px; background: rgba(244, 239, 230, 0.2); overflow: hidden; }
 .hero-scroll span { position: absolute; left: 0; top: 0; width: 1px; height: 40%; background: var(--gold); }
 @media (prefers-reduced-motion: no-preference) { .hero-scroll span { animation: drip 1800ms var(--ease-in-out) infinite; } }
 @keyframes drip { from { transform: translateY(-100%); } to { transform: translateY(260%); } }
@@ -682,19 +730,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 .card:hover .card-swatches i { transform: scale(1.25); }
 
 /* ---------- Warranty ---------- */
-.warranty { display: grid; grid-template-columns: 1.2fr 1fr; gap: clamp(32px, 5vw, 96px); align-items: center; padding-bottom: clamp(96px, 12vw, 180px); }
-.warranty-media { overflow: hidden; aspect-ratio: 4 / 3; }
-.warranty-media img { width: 100%; height: 116%; object-fit: cover; margin-top: -8%; }
-.warranty-copy { display: grid; gap: 24px; }
-.checks { display: grid; gap: 4px; font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2.25rem); font-weight: 300; letter-spacing: -0.02em; }
-.checks li { display: flex; align-items: center; gap: 16px; }
-.checks svg { width: 0.9em; height: 0.9em; fill: none; stroke: var(--gold); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
-.checks path { stroke-dasharray: 1; stroke-dashoffset: 0; }
-@media (prefers-reduced-motion: no-preference) {
-  .js .checks path { stroke-dashoffset: 1; transition: stroke-dashoffset 700ms var(--ease-out); transition-delay: calc(var(--d, 0ms) + 300ms); }
-  .js .checks li.is-in path { stroke-dashoffset: 0; }
-}
-@media (max-width: 860px) { .warranty { grid-template-columns: 1fr; } }
+
 
 /* ---------- Gold field with the quote form ---------- */
 .field { background: var(--gold); color: var(--charcoal); overflow: hidden; padding-bottom: clamp(72px, 9vw, 140px); }
