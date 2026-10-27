@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300;1,9..40,400&display=swap">
   <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="preload" as="image" href="assets/img/hero/chair-front.webp" type="image/webp">
 </head>
 <body data-page="home">
   <a class="skip-link" href="#main">Skip to content</a>
@@ -21,12 +22,20 @@
     <section class="scene is-start" data-scene aria-labelledby="hero-title">
       <div class="scene-sticky">
         <div class="scene-glow" aria-hidden="true"></div>
-        <canvas class="scene-canvas" data-scene-canvas aria-hidden="true"></canvas>
-        <div class="scene-labels" aria-hidden="true">
-          <span class="scene-label" data-scene-label="mech">Mechanism</span>
-          <span class="scene-label" data-scene-label="lift">Gas lift</span>
-          <span class="scene-label" data-scene-label="base">Base</span>
-          <span class="scene-label" data-scene-label="wheels">Wheels</span>
+        <!-- The same chair photographed from five sides; scrolling turns it from one view to the next. -->
+        <div class="scene-chair" data-scene-chair aria-hidden="true">
+          <div class="scene-view" data-view="front"><img src="assets/img/hero/chair-front.webp" alt="" width="875" height="1400" fetchpriority="high"></div>
+          <div class="scene-view" data-view="angle"><img src="assets/img/hero/chair-angle.webp" alt="" width="874" height="1400" decoding="async"></div>
+          <div class="scene-view" data-view="back-angle"><img src="assets/img/hero/chair-back-angle.webp" alt="" width="875" height="1400" decoding="async"></div>
+          <div class="scene-view" data-view="back"><img src="assets/img/hero/chair-back.webp" alt="" width="875" height="1400" decoding="async"></div>
+          <div class="scene-view" data-view="recline"><img src="assets/img/hero/chair-recline.webp" alt="" width="1493" height="1400" decoding="async">
+            <span class="scene-label scene-label--left" data-scene-label="3" style="--x:86%;--y:58%">Pull-out footrest</span>
+            <span class="scene-label" data-scene-label="3" style="--x:31%;--y:30%">Reclining back</span>
+            <span class="scene-label" data-scene-label="4" style="--x:50%;--y:65%">Mechanism</span>
+            <span class="scene-label" data-scene-label="4" style="--x:44.5%;--y:72%">Gas lift</span>
+            <span class="scene-label" data-scene-label="4" style="--x:58%;--y:82.5%">Base</span>
+            <span class="scene-label" data-scene-label="4" style="--x:65.5%;--y:86%">Wheels</span>
+          </div>
         </div>
 
         <div class="scene-panel scene-panel--hero is-active" data-scene-step>
@@ -39,18 +48,17 @@
         </div>
         <div class="scene-panel scene-panel--right" data-scene-step>
           <h2 class="h2">Shaped for <em>long days.</em></h2>
-          <p class="scene-text">A high back that curves around you, lumbar support where your spine needs it, and a seat with a soft waterfall edge.</p>
+          <p class="scene-text">A tall, padded back with a separate headrest, soft leather on every surface you touch, and padded armrests on chrome brackets.</p>
         </div>
         <div class="scene-panel" data-scene-step>
-          <h2 class="h2">Built with <em>foreign fittings.</em></h2>
-          <p class="scene-text">Every chair on our list is imported and assembled with fully foreign fittings, from the tilt mechanism to the casters.</p>
-        </div>
-        <div class="scene-panel" data-scene-step>
-          <h2 class="h2">Pick its <em>colour.</em></h2>
-          <p class="scene-text">Most models come in two to four colourways, all in stock in our Dhaka warehouse.</p>
-          <p class="scene-colour"><span class="scene-dots" aria-hidden="true"><i data-scene-dot style="--c:#1d1d1f"></i><i data-scene-dot style="--c:#9e3434"></i><i data-scene-dot style="--c:#efece4"></i><i data-scene-dot style="--c:#2f5d8a"></i><i data-scene-dot style="--c:#2f6b55"></i><i data-scene-dot style="--c:#c99a6b"></i></span><span data-scene-colour aria-live="polite">Black</span></p>
+          <h2 class="h2">Finished on <em>every side.</em></h2>
+          <p class="scene-text">Turn it around: a tan leather shell wraps the back, closed with a polished chrome V. Imported, with fully foreign fittings throughout.</p>
         </div>
         <div class="scene-panel scene-panel--right" data-scene-step>
+          <h2 class="h2">Lean back. <em>Feet up.</em></h2>
+          <p class="scene-text">The back reclines and a padded footrest slides out from under the seat, for a proper break between meetings.</p>
+        </div>
+        <div class="scene-panel" data-scene-step>
           <h2 class="h2">Two years. <em>Every moving part.</em></h2>
           <p class="scene-text">The mechanism, gas lift, base and wheels are covered by the Decoture warranty card that comes with every chair.</p>
           <p class="small soft">CDS conference chairs carry one year of free service on manufacturing faults.</p>
@@ -152,7 +160,7 @@
   <script src="assets/js/catalog.js"></script>
   <script src="assets/js/app.js"></script>
   <script src="assets/js/motion.js"></script>
-  <script src="assets/js/chair3d.js"></script>
+  <script src="assets/js/chair-scene.js"></script>
   <script src="assets/js/home.js"></script>
 </body>
 </html>

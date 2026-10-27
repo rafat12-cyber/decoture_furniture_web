@@ -155,7 +155,7 @@ Every chair is currently priced at ৳8,900 as a placeholder.
 | Path | What it is |
 |---|---|
 | `index.html`, `shop.html`, `product.html`, `cart.html`, `checkout.html`, `order.html`, `track.html`, `offices.html`, `about.html`, `contact.html` | Storefront pages |
-| `assets/js/` | Storefront scripts: `app.js` (shared), `motion.js` (animation), `chair3d.js` (3D chair), one script per page |
+| `assets/js/` | Storefront scripts: `app.js` (shared), `motion.js` (animation), `chair-scene.js` (home page chair turntable, from photos in `assets/img/hero/`), one script per page |
 | `admin/` | Admin panel |
 | `server/` | `server.mjs` starts the server; `app.mjs` handles routes and security; `db.mjs` is the database; `auth.mjs` handles passwords and sessions; `mail.mjs` sends email; `sslcommerz.mjs` takes online payments; `seo.mjs` writes search and sharing tags, the sitemap and robots.txt |
 | `lib/catalog.mjs`, `lib/delivery.mjs` | The catalog shape and the delivery zones, used by both the server and the static build |
