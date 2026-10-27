@@ -99,7 +99,10 @@
   });
   add.addEventListener('click', () => {
     const n = Math.max(1, Math.min(v.stock, +qty.value || 1));
-    if (D.cart.add(v.id, n)) D.openDrawer();
+    if (D.cart.add(v.id, n)) {
+      window.Motion?.fly(stage);
+      setTimeout(D.openDrawer, window.Motion && !window.Motion.reduce ? 760 : 0);
+    }
   });
   select(v, false);
 

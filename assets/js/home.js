@@ -1,140 +1,173 @@
-// Home page: the contact sheet hero, executive run, stock list, index and quote bar.
+// Home page: colour studio, pinned collections, featured line, chair band and quote form.
 (function () {
   'use strict';
   const D = window.Decoture;
+  const M = window.Motion;
   const { products, catalog, esc, money } = D;
 
-  // Shared counts in copy
-  const variants = products.flatMap((p) => p.variants.map((v) => ({ p, v })));
   const prices = products.map(D.productFromPrice).filter((n) => n != null);
-  document.querySelectorAll('[data-model-count]').forEach((el) => { el.textContent = products.length; });
-  document.querySelectorAll('[data-variant-count]').forEach((el) => { el.textContent = variants.length; });
   document.querySelectorAll('[data-from-price]').forEach((el) => { el.textContent = prices.length ? money(Math.min(...prices)) : 'price on request'; });
-  document.querySelectorAll('[data-stock-date]').forEach((el) => {
-    el.textContent = new Date(catalog.stockListDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  });
+  const totalStock = products.reduce((n, p) => n + D.productStock(p), 0);
+  document.querySelectorAll('[data-total-stock]').forEach((el) => { el.dataset.count = totalStock; el.textContent = totalStock.toLocaleString('en-IN'); });
 
-  // ---------- Hero sheet ----------
-  // Interleave collections so neighbouring frames differ; six columns of six.
-  const withImage = variants.filter(({ v }) => v.image);
-  const order = [];
-  const pools = ['executive', 'ergonomic', 'task', 'ergonomic', 'executive', 'task', 'training'].map((c) => c);
-  const byColl = {};
-  withImage.forEach((x) => { (byColl[x.p.collection] ||= []).push(x); });
-  let guard = 0;
-  while (order.length < 42 && guard++ < 400) {
-    const c = pools[guard % pools.length];
-    const pool = byColl[c];
-    if (pool && pool.length) order.push(pool.splice((guard * 7) % pool.length, 1)[0]);
+  // ---------- Colour studio ----------
+  const STUDIO = ['a40', '6859a', 'a3903-1', 'a12', '6838a', 'a823', 'a32']
+    .map((s) => D.bySlug.get(s))
+    .filter((p) => p && p.variants.filter((v) => v.image).length > 1);
+  const modelsBox = document.querySelector('[data-studio-models]');
+  const swBox = document.querySelector('[data-studio-swatches]');
+  const img = document.querySelector('[data-studio-img]');
+  const ghost = document.querySelector('[data-studio-ghost]');
+  const stage = document.querySelector('[data-studio-stage]');
+  const nameEl = document.querySelector('[data-studio-name]');
+  const collEl = document.querySelector('[data-studio-coll]');
+  const colourEl = document.querySelector('[data-studio-colour]');
+  const priceEl = document.querySelector('[data-studio-price]');
+  const addBtn = document.querySelector('[data-studio-add]');
+  const link = document.querySelector('[data-studio-link]');
+  let current = STUDIO[0];
+  let variant = current.variants.find((v) => v.image);
+  let auto = !M.reduce;
+
+  modelsBox.innerHTML = STUDIO.map((p) => `<button type="button" class="pill" data-model="${p.slug}">${esc(p.model)}</button>`).join('');
+
+  function swapImage(src, alt) {
+    if (M.reduce || img.getAttribute('src') === src) { img.src = src; img.alt = alt; return; }
+    img.classList.add('is-out');
+    setTimeout(() => {
+      img.src = src; img.alt = alt;
+      const show = () => { img.classList.remove('is-out'); img.classList.add('is-in-anim'); setTimeout(() => img.classList.remove('is-in-anim'), 700); };
+      if (img.complete) requestAnimationFrame(show); else img.onload = show;
+    }, 260);
   }
-  const sheet = document.querySelector('[data-sheet]');
-  const cols = Array.from({ length: 6 }, () => document.createElement('div'));
-  cols.forEach((c) => { c.className = 'sheet-col'; sheet.append(c); });
-  order.forEach(({ p, v }, i) => {
-    const a = document.createElement('a');
-    a.className = 'frame';
-    a.href = D.productUrl(p, v);
-    a.dataset.family = D.familyOf(v) || '';
-    a.style.setProperty('--d', `${(i % 6) * 70 + Math.floor(i / 6) * 40}ms`);
-    a.innerHTML = `<img src="${v.image}" alt="${esc(v.sku)} chair" width="200" height="260"${i < 12 ? '' : ' loading="lazy"'}>
-      <span class="frame-strip strip-${(i + Math.floor(i / 6)) % 4}"><span class="model">${esc(p.model)}</span><span>${esc(v.colour)}</span></span>`;
-    cols[i % 6].append(a);
-  });
-
-  // The live thing: pick a colour, the sheet shows which chairs come in it.
-  const swatchBox = document.querySelector('[data-hero-swatches]');
-  const result = document.querySelector('[data-picker-result]');
-  const familyCounts = Object.fromEntries(D.FAMILIES.map((f) => [f.key, variants.filter(({ v }) => D.familyOf(v) === f.key)]));
-  swatchBox.innerHTML = `<button type="button" class="swatch-all" aria-pressed="true" data-family="">All</button>` +
-    D.FAMILIES.map((f) => `<button type="button" class="swatch" style="--c:${f.hex}" aria-pressed="false" data-family="${f.key}" aria-label="${f.label}" title="${f.label}"></button>`).join('');
-  swatchBox.addEventListener('click', (e) => {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    const fam = btn.dataset.family;
-    swatchBox.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
-    sheet.querySelectorAll('.frame').forEach((f) => f.classList.toggle('is-dimmed', !!fam && f.dataset.family !== fam));
-    if (!fam) { result.textContent = ''; return; }
-    const list = familyCounts[fam];
-    const models = new Set(list.map(({ p }) => p.slug)).size;
-    const label = D.FAMILIES.find((f) => f.key === fam).label.toLowerCase();
-    result.innerHTML = `${models} ${models === 1 ? 'model comes' : 'models come'} in ${esc(label)}. <a class="link" href="shop.html?colour=${fam}">Show them</a>`;
-  });
-
-  // ---------- Executive run, one frame lifted ----------
-  const run = document.querySelector('[data-run]');
-  ['6801a', '6856a', '6859a', '6838a'].map((k) => D.bySlug.get(k)).filter(Boolean).forEach((p, i) => {
-    const v = p.variants.find((x) => x.image);
-    const isLifted = p.slug === '6859a';
-    const fact = p.variants.length > 1 ? `${p.variants.length} colours` : v.colour;
-    const a = document.createElement('a');
-    a.className = 'run-item' + (isLifted ? ' lifted' : '');
-    a.href = D.productUrl(p, v);
-    if (!isLifted) { a.dataset.reveal = ''; a.style.setProperty('--d', `${i * 60}ms`); }
-    a.innerHTML = `<span class="shot${isLifted ? ' shutter' : ''}"><img src="${v.image}" alt="${esc(v.sku)} executive chair" width="200" height="260" loading="lazy"></span>
-      <span class="caption"><span>${esc(p.model)}</span><span>${esc(fact)}</span></span>`;
-    run.append(a);
-  });
-
-  // ---------- Stock list ----------
-  const groups = document.querySelector('[data-stock-groups]');
-  const ranked = variants.filter(({ v }) => v.stock > 0).sort((a, b) => b.v.stock - a.v.stock);
-  const deep = ranked.slice(0, 12);
-  const low = ranked.filter(({ v }) => v.stock <= D.CONFIG.lowStock).sort((a, b) => a.v.stock - b.v.stock);
-  const row = ({ p, v }) => {
+  function renderStudio(model, v, fromModel) {
+    current = model; variant = v;
+    modelsBox.querySelectorAll('[data-model]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.model === model.slug)));
+    if (fromModel) {
+      swBox.innerHTML = model.variants.filter((x) => x.image).map((x) => `<button type="button" class="swatch swatch--lg" style="--c:${x.swatch}" data-v="${x.id}" aria-label="${esc(x.colour)}" title="${esc(x.colour)}"></button>`).join('');
+      if (ghost.textContent !== model.model) {
+        ghost.classList.add('is-out');
+        setTimeout(() => { ghost.textContent = model.model; ghost.classList.remove('is-out'); }, M.reduce ? 0 : 300);
+      }
+      nameEl.textContent = model.model;
+      collEl.textContent = catalog.collections[model.collection].name;
+    }
+    swBox.querySelectorAll('[data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === v.id)));
+    stage.style.setProperty('--tint', v.swatch);
+    swapImage(v.image, `${v.sku} chair`);
     const s = D.stockState(v);
-    const value = v.stock >= 100 ? `${Math.floor(v.stock / 100) * 100}+ ready` : s.label;
-    return `<a class="stock-row" href="${D.productUrl(p, v)}"><span class="name"><span class="dot" style="--c:${v.swatch}"></span><span>${esc(v.sku)}</span></span><span class="value${s.key === 'low' ? ' low' : ''}">${value}</span></a>`;
-  };
-  groups.innerHTML = `
-    <div class="stock-group" data-reveal><p>Deepest stock</p>${deep.map(row).join('')}</div>
-    ${low.length ? `<div class="stock-group" data-reveal><p>Last few</p>${low.map(row).join('')}</div>` : ''}`;
-
-  // ---------- Index ----------
-  const collList = document.querySelector('[data-index-collections]');
-  collList.innerHTML = Object.entries(catalog.collections).map(([k, c]) => {
-    const n = products.filter((p) => p.collection === k).length;
-    return `<li data-detail="${esc(c.blurb)} ${n} models."><a href="shop.html?collection=${k}">${esc(c.name)}</a></li>`;
-  }).join('');
-  const detail = document.querySelector('[data-index-detail]');
-  const showDetail = (e) => {
-    const li = e.target.closest('li[data-detail]');
-    if (!li) return;
-    document.querySelectorAll('.index-col li.is-on').forEach((x) => x.classList.remove('is-on'));
-    li.classList.add('is-on');
-    detail.textContent = li.dataset.detail;
-  };
-  document.querySelectorAll('.index-col').forEach((col) => {
-    col.addEventListener('mouseover', showDetail);
-    col.addEventListener('focusin', showDetail);
+    colourEl.innerHTML = `${esc(v.colour)} <span class="status status--${s.key}">· ${s.label}</span>`;
+    priceEl.textContent = D.priceLabel(v);
+    addBtn.disabled = v.stock <= 0;
+    link.href = D.productUrl(model, v);
+  }
+  modelsBox.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-model]');
+    if (!b) return;
+    auto = false;
+    const p = D.bySlug.get(b.dataset.model);
+    renderStudio(p, p.variants.find((x) => x.image && x.stock > 0) || p.variants.find((x) => x.image), true);
   });
-
-  // ---------- Record lists ----------
-  document.querySelector('[data-record-collections]').innerHTML = Object.entries(catalog.collections).map(([k, c]) => {
-    const n = products.filter((p) => p.collection === k).length;
-    return `<li><span>${esc(c.name)}</span><span class="tnum">${n} models</span></li>`;
-  }).join('');
-
-  // ---------- Marquee: chairs and the brand's own photographs ----------
-  const brand = [
-    ['assets/img/brand/hang-tags.jpg', 'Decoture hang tags and fabric swatches on a leather sofa'],
-    ['assets/img/brand/warranty-card.jpg', 'Decoture warranty certificate and care guide'],
-    ['assets/img/brand/showroom-sign.jpg', 'Decoture showroom sign on the pavement'],
-    ['assets/img/brand/catalogue.jpg', 'Decoture catalogues on a marble table'],
-  ];
-  const ratios = ['r34', 'r11', 'r32'];
-  const chairs = withImage.filter((_, i) => i % 7 === 3).slice(0, 10);
-  const frames = [];
-  chairs.forEach((x, i) => {
-    frames.push(`<figure class="chair r34"><img src="${x.v.image}" alt="" loading="lazy" width="120" height="160"></figure>`);
-    if (i % 3 === 1 && brand[(i / 3) | 0]) {
-      const [src] = brand[(i / 3) | 0];
-      frames.push(`<figure class="${ratios[(i % 2) + 1]}"><img src="${src}" alt="" loading="lazy" width="225" height="150"></figure>`);
+  swBox.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-v]');
+    if (!b) return;
+    auto = false;
+    renderStudio(current, current.variants.find((x) => x.id === b.dataset.v), false);
+  });
+  addBtn.addEventListener('click', () => {
+    if (D.cart.add(variant.id, 1)) {
+      M.fly(img);
+      D.toast(`Added ${variant.sku} to your cart`);
     }
   });
-  const track = document.querySelector('[data-marquee]');
-  track.innerHTML = frames.join('') + frames.join('');
+  renderStudio(current, variant, true);
 
-  // ---------- Quote bar ----------
+  // Until someone touches it, the studio cycles colours, then models, while it is on screen.
+  if (auto) {
+    let visible = false;
+    new IntersectionObserver(([en]) => { visible = en.isIntersecting; }, { threshold: 0.3 }).observe(stage);
+    let step = 0;
+    setInterval(() => {
+      if (!auto || !visible || document.hidden) return;
+      const vs = current.variants.filter((x) => x.image);
+      const i = vs.indexOf(variant);
+      step++;
+      if (i < vs.length - 1) renderStudio(current, vs[i + 1], false);
+      else {
+        const next = STUDIO[(STUDIO.indexOf(current) + 1) % STUDIO.length];
+        renderStudio(next, next.variants.find((x) => x.image), true);
+      }
+    }, 2400);
+  }
+
+  // ---------- Pinned collections ----------
+  const track = document.querySelector('[data-hscroll-track]');
+  const pick = (k) => products.filter((p) => p.collection === k && D.firstImage(p));
+  const fanFor = {
+    executive: ['6859a', '6856a', '6837a'],
+    ergonomic: ['a40', 'a3903-1', 'gmc-5d'],
+    task: ['c-758', 'b821', 'c-622'],
+    training: ['d113', 'd164'],
+  };
+  track.innerHTML = Object.entries(catalog.collections).map(([k, c], i) => {
+    const list = pick(k);
+    const models = products.filter((p) => p.collection === k);
+    const stock = models.reduce((n, p) => n + D.productStock(p), 0);
+    const fan = (fanFor[k] || []).map((s) => D.bySlug.get(s)).filter(Boolean).concat(list).filter((p, n, a) => a.indexOf(p) === n).slice(0, 3);
+    return `
+      <article class="panel panel--${i % 2 ? 'cream' : 'dark'}" data-panel>
+        <div class="panel-copy">
+          <h3 class="panel-title">${esc(c.name)}</h3>
+          <p class="panel-blurb">${esc(c.blurb)}</p>
+          <dl class="panel-facts">
+            <div><dt>Models</dt><dd class="tnum">${models.length}</dd></div>
+            <div><dt>In stock</dt><dd class="tnum">${stock.toLocaleString('en-IN')}</dd></div>
+          </dl>
+          <a class="button ${i % 2 ? 'button--dark' : ''}" href="shop.html?collection=${k}">Shop ${esc(c.name.toLowerCase())}</a>
+        </div>
+        <div class="panel-fan" aria-hidden="true">
+          ${fan.map((p, n) => `<img style="--n:${n - (fan.length - 1) / 2}" src="${D.firstImage(p)}" alt="" width="200" height="260" loading="lazy">`).join('')}
+        </div>
+      </article>`;
+  }).join('');
+
+  const hs = document.querySelector('[data-hscroll]');
+  const hbar = document.querySelector('[data-hscroll-bar]');
+  const panels = [...track.querySelectorAll('[data-panel]')];
+  const pinned = () => window.matchMedia('(min-width: 861px)').matches && !M.reduce;
+  function sizeHscroll() {
+    if (!pinned()) { hs.style.height = ''; track.style.transform = ''; return; }
+    const extra = track.scrollWidth - innerWidth;
+    hs.style.height = `${innerHeight + Math.max(0, extra)}px`;
+  }
+  sizeHscroll();
+  window.addEventListener('resize', sizeHscroll);
+  window.addEventListener('load', sizeHscroll);
+  M.addScrub(() => {
+    if (!pinned()) return;
+    const p = M.pinProgress(hs);
+    const extra = Math.max(0, track.scrollWidth - innerWidth);
+    track.style.transform = `translate3d(${(-p * extra).toFixed(1)}px,0,0)`;
+    hbar.style.transform = `scaleX(${p})`;
+    // Each panel's chairs fan open as the panel reaches the middle of the screen.
+    panels.forEach((panel) => {
+      const r = panel.getBoundingClientRect();
+      const c = 1 - Math.min(1, Math.abs(r.left + r.width / 2 - innerWidth / 2) / innerWidth);
+      panel.style.setProperty('--open', c.toFixed(3));
+    });
+  });
+  if (!pinned()) panels.forEach((p) => p.style.setProperty('--open', 1));
+
+  // ---------- Featured executive line ----------
+  const featured = ['6859a', '6856a', '6838a', '6837a', '6832a', '6995a', '6801a', '6833a']
+    .map((s) => D.bySlug.get(s)).filter(Boolean);
+  document.querySelector('[data-featured]').innerHTML = featured.map((p, i) => D.cardHTML(p, i)).join('');
+
+  // ---------- Chair band in the gold field ----------
+  const bandChairs = products.flatMap((p) => p.variants.filter((v) => v.image).slice(0, 1)).filter((_, i) => i % 3 === 0).slice(0, 14);
+  document.querySelector('[data-chair-band]').innerHTML = bandChairs.map((v) => `<figure><img src="${v.image}" alt="" width="120" height="150" loading="lazy"></figure>`).join('');
+
+  // ---------- Quote form ----------
   const form = document.querySelector('[data-quote-form]');
   const err = document.querySelector('[data-quote-error]');
   form.addEventListener('submit', (e) => {
@@ -146,8 +179,7 @@
     form.phone.setAttribute('aria-invalid', String(!phoneOk));
     if (!name || !phoneOk) { err.textContent = !name ? 'Please add your name.' : 'Please add a phone number we can call.'; return; }
     err.textContent = '';
-    const text = `Hello Decoture, I would like a quote for office chairs.\nName: ${name}\nPhone: ${phone}`;
-    D.openExternal(D.whatsappLink(text));
+    D.openExternal(D.whatsappLink(`Hello Decoture, I would like a quote for office chairs.\nName: ${name}\nPhone: ${phone}`));
   });
 
   D.reveal();

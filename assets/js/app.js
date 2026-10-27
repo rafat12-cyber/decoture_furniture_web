@@ -165,8 +165,15 @@
         <a href="mailto:${CONFIG.email}">${CONFIG.email}</a>
         <a href="${CONFIG.phoneHref}">${CONFIG.phone}</a>
       </div>
-      <div class="tile tile-word"><img src="assets/img/logo/lockup.svg" alt="decoture, style, comfort, crafted" width="522" height="280" loading="lazy"></div>
-      <a class="tile tile-cta" href="shop.html">
+      <div class="tile tile-word" data-draw>
+        <svg class="mark-draw" viewBox="392 401 176 118" fill="none" stroke="currentColor" stroke-width="6.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path pathLength="1" d="M467.9 478.9 L432 411 Q430 407.3 426 407.3 L405 407.3 Q396.5 407.3 399 415.5 L430.2 478.9 L503 478.9 A16.7 16.7 0 0 1 503 512.3 L430.2 512.3"/>
+          <path pathLength="1" d="M442.7 407.3 L510.3 407.3 A52.5 52.5 0 0 1 510.3 512.3 L503 512.3"/>
+        </svg>
+        <img class="tile-wordmark" src="assets/img/logo/wordmark.svg" alt="decoture" width="522" height="102" loading="lazy">
+        <p class="tile-tag">Style. Comfort. Crafted.</p>
+      </div>
+      <a class="tile tile-cta" href="shop.html" data-magnetic="0.08">
         <span>Find your chair</span>
         <svg viewBox="0 0 56 56" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M14 42 42 14M20 14h22v22"/></svg>
       </a>`;
@@ -320,6 +327,7 @@
 
   // ---------- Reveal on scroll ----------
   function reveal(root = document) {
+    if (window.Motion) { window.Motion.refresh(root); return; }
     const els = root.querySelectorAll('[data-reveal]:not(.is-in), .shutter:not(.is-in)');
     if (!('IntersectionObserver' in window)) { els.forEach((el) => el.classList.add('is-in')); return; }
     // A fully clipped element never intersects, so shutters are watched through their parent.
@@ -337,15 +345,19 @@
 
   // ---------- Card markup used by shop, home and related ----------
   function cardHTML(p, i = 0) {
-    const img = firstImage(p);
+    const imgs = p.variants.filter((v) => v.image);
     const from = productFromPrice(p);
     const total = productStock(p);
     const state = total <= 0 ? { key: 'out', label: 'Out of stock' } : total <= CONFIG.lowStock ? { key: 'low', label: `Only ${total} left` } : { key: 'in', label: 'In stock' };
+    const first = imgs[0]?.image || PLACEHOLDER;
+    const second = imgs[1]?.image;
     return `
-      <a class="card" href="${productUrl(p)}" data-reveal style="--d:${(i % 6) * 50}ms">
-        <span class="frame">
-          <img src="${img || PLACEHOLDER}" alt="${esc(p.name)} chair" width="400" height="500" loading="lazy">
-          <span class="frame-strip strip-${i % 4}"><span class="model">${esc(p.model)}</span><span>${esc(catalog.collections[p.collection].name)}</span></span>
+      <a class="card" href="${productUrl(p)}" data-reveal="card" data-tilt data-cursor="View" style="--d:${(i % 4) * 80}ms">
+        <span class="card-media" data-tilt-target>
+          <img class="card-img" src="${first}" alt="${esc(p.name)} chair" width="400" height="500" loading="lazy">
+          ${second ? `<img class="card-img card-img--alt" src="${second}" alt="" width="400" height="500" loading="lazy">` : ''}
+          <span class="card-glare" aria-hidden="true"></span>
+          <span class="card-tag">${esc(catalog.collections[p.collection].name)}</span>
         </span>
         <span class="card-body">
           <span class="card-title"><strong>${esc(p.name)}</strong><span>${from == null ? 'On request' : money(from)}</span></span>
