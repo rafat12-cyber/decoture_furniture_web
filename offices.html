@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chairs for offices · Decoture</title>
+  <meta name="description" content="Bulk office chair orders and quotes from Decoture in Dhaka.">
+  <meta name="theme-color" content="#1c2321">
+  <link rel="icon" href="assets/img/logo/mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap">
+  <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body data-page="offices">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header data-site-header></header>
+
+  <main id="main" tabindex="-1">
+    <div class="page-head">
+      <h1>Chairs for a whole office</h1>
+      <p>We keep deep stock in Dhaka: hundreds of the same model in the same colour, so every desk matches. Tell us what you need and we will reply with a quote.</p>
+    </div>
+    <div class="two-col">
+      <form class="form" data-bulk-form novalidate>
+        <fieldset>
+          <legend>Your company</legend>
+          <div class="form-row">
+            <div class="field-group"><label for="b-company">Company or organisation</label><input class="input" id="b-company" name="company" autocomplete="organization" required></div>
+            <div class="field-group"><label for="b-name">Your name</label><input class="input" id="b-name" name="name" autocomplete="name" required></div>
+          </div>
+          <div class="form-row">
+            <div class="field-group"><label for="b-phone">Phone</label><input class="input" id="b-phone" name="phone" type="tel" autocomplete="tel" required></div>
+            <div class="field-group"><label for="b-email">Email <span class="soft">(optional)</span></label><input class="input" id="b-email" name="email" type="email" autocomplete="email"></div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>What you need</legend>
+          <div class="field-group"><label for="b-items">Models and quantities</label><textarea class="input" id="b-items" name="items" placeholder="e.g. 40 × C-758 Black, 6 × 6837A Black for the cabins" required></textarea><p class="hint">Not sure yet? Describe the rooms and we will suggest chairs.</p></div>
+          <div class="form-row">
+            <div class="field-group"><label for="b-city">Delivery city</label><input class="input" id="b-city" name="city" value="Dhaka"></div>
+            <div class="field-group"><label for="b-when">Needed by <span class="soft">(optional)</span></label><input class="input" id="b-when" name="when" type="date"></div>
+          </div>
+        </fieldset>
+        <p class="error-text" data-form-error role="alert"></p>
+        <div class="actions">
+          <button class="button" type="submit" name="via" value="whatsapp">Send on WhatsApp</button>
+          <button class="button button--ghost" type="submit" name="via" value="email">Send by email</button>
+        </div>
+      </form>
+      <aside class="summary" aria-labelledby="deep-title">
+        <h2 id="deep-title">Deepest stock right now</h2>
+        <div data-deep-stock></div>
+        <p class="small soft">From the stock list of 20 October 2026.</p>
+      </aside>
+    </div>
+  </main>
+
+  <footer data-site-footer></footer>
+
+  <script src="assets/js/catalog.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/offices.js"></script>
+</body>
+</html>

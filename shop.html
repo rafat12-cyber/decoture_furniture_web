@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shop chairs · Decoture</title>
+  <meta name="description" content="All imported office chairs from Decoture: executive, ergonomic, task and training chairs, with stock and prices.">
+  <meta name="theme-color" content="#1c2321">
+  <link rel="icon" href="assets/img/logo/mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap">
+  <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body data-page="shop">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header data-site-header></header>
+
+  <main id="main" tabindex="-1">
+    <div class="page-head">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">Home</a><span aria-hidden="true">/</span><span>Shop</span></nav>
+      <h1 data-shop-title>All chairs</h1>
+      <p data-shop-blurb>Every chair on our current stock list, with a 2-year warranty on mechanism, gas lift, base and wheels.</p>
+    </div>
+    <div class="shop-tools">
+      <div class="chips" role="group" aria-label="Collection" data-collection-chips></div>
+      <div class="tool-right">
+        <div class="colour-filter" role="group" aria-label="Colour" data-colour-filter></div>
+        <label class="check"><input type="checkbox" data-instock> In stock only</label>
+        <label class="visually-hidden" for="sort">Sort</label>
+        <select class="select" id="sort" data-sort>
+          <option value="featured">Featured</option>
+          <option value="stock">Most in stock</option>
+          <option value="price-asc">Price: low to high</option>
+          <option value="price-desc">Price: high to low</option>
+          <option value="name">Model A to Z</option>
+        </select>
+      </div>
+    </div>
+    <p class="result-count" data-result-count aria-live="polite"></p>
+    <div class="product-grid" data-grid></div>
+    <div class="empty-state" data-empty hidden>
+      <p class="lead">No chairs match those filters.</p>
+      <button class="button button--ghost" type="button" data-reset>Clear filters</button>
+    </div>
+  </main>
+
+  <footer data-site-footer></footer>
+
+  <script src="assets/js/catalog.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/shop.js"></script>
+</body>
+</html>
