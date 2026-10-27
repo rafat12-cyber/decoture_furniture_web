@@ -28,8 +28,32 @@
       `Deliver to: ${form.city.value.trim() || 'Dhaka'}`,
       form.when.value ? `Needed by: ${form.when.value}` : null,
     ].filter(Boolean).join('\n');
-    const via = e.submitter && e.submitter.value === 'email' ? 'email' : 'whatsapp';
-    if (via === 'email') location.href = D.mailLink('Office chair quote', msg);
+    const via = e.submitter ? e.submitter.value : 'whatsapp';
+    if (via === 'server') sendToStore();
+    else if (via === 'email') location.href = D.mailLink('Office chair quote', msg);
     else D.openExternal(D.whatsappLink(msg));
   });
+
+  // On the live store the request is saved for the sales team; WhatsApp stays as a second way.
+  const buttons = form.querySelectorAll('[name="via"]');
+  if (D.live) {
+    buttons[0].value = 'server'; buttons[0].textContent = 'Send request';
+    buttons[1].value = 'whatsapp'; buttons[1].textContent = 'Send on WhatsApp instead';
+  }
+  async function sendToStore() {
+    buttons[0].disabled = true;
+    try {
+      await D.api('/api/quotes', {
+        method: 'POST',
+        body: {
+          company: form.company.value.trim(), name: form.name.value.trim(), phone: form.phone.value.trim(),
+          email: form.email.value.trim(), items: form.items.value.trim(), city: form.city.value.trim() || 'Dhaka', neededBy: form.when.value,
+        },
+      });
+      form.innerHTML = `<div class="note-box"><strong>Thank you.</strong> Our sales team has your request and will call ${D.esc(form.phone.value.trim())} with a quote, usually within one working day.</div>`;
+    } catch (ex) {
+      buttons[0].disabled = false;
+      err.textContent = ex.status ? ex.message : 'We could not reach the store. Try WhatsApp instead, or call us.';
+    }
+  }
 })();

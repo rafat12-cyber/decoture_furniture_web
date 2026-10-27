@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Track your order · Decoture</title>
+  <meta name="description" content="Check the status of your Decoture order with your order number and phone.">
+  <meta name="theme-color" content="#1c2321">
+  <link rel="icon" href="assets/img/logo/mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300;1,9..40,400&display=swap">
+  <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body data-page="track">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header data-site-header></header>
+
+  <main id="main" tabindex="-1">
+    <div class="page-head">
+      <h1 data-split>Track your order</h1>
+      <p>Enter the order number from your confirmation and the mobile number you ordered with.</p>
+    </div>
+    <div class="two-col">
+      <form class="form" data-track-form novalidate>
+        <div class="form-row">
+          <div class="field-group"><label for="t-id">Order number</label><input class="input" id="t-id" name="id" placeholder="DC-261027-AB12" autocapitalize="characters" required></div>
+          <div class="field-group"><label for="t-phone">Mobile number</label><input class="input" id="t-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="01XXXXXXXXX" required></div>
+        </div>
+        <p class="error-text" data-form-error role="alert"></p>
+        <div class="actions"><button class="button" type="submit">Find my order</button></div>
+      </form>
+      <section class="summary track-result" aria-live="polite" data-track-result hidden></section>
+    </div>
+  </main>
+
+  <footer data-site-footer></footer>
+
+  <script src="assets/js/catalog.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/motion.js"></script>
+  <script src="assets/js/track.js"></script>
+</body>
+</html>

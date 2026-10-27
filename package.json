@@ -1,0 +1,14 @@
+{
+  "name": "decoture-store",
+  "private": true,
+  "description": "Decoture online store: storefront, order API and admin panel. No dependencies.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/server.mjs",
+    "test": "node --disable-warning=ExperimentalWarning --test test/*.test.mjs",
+    "build:catalog": "node tools/build-catalog.mjs"
+  }
+}

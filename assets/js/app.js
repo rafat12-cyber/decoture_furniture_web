@@ -14,6 +14,9 @@
   };
 
   const catalog = window.DECOTURE_CATALOG;
+  // On the store server the catalog comes live from the database and orders go to the API.
+  // On a static host (or the demo) orders fall back to WhatsApp and email.
+  const live = !!catalog.live;
   const products = catalog.products;
   const bySlug = new Map(products.map((p) => [p.slug, p]));
   const byVariant = new Map();
@@ -153,6 +156,7 @@
           <li><a href="offices.html">For offices</a></li>
           <li><a href="about.html">About Decoture</a></li>
           <li><a href="cart.html">Cart</a></li>
+          ${live ? '<li><a href="track.html">Track an order</a></li>' : ''}
         </ul>
       </nav>
       <div class="tile tile-place">
@@ -399,6 +403,24 @@
       return lines.join('\n');
     },
   };
+  // JSON calls to the store API. Errors carry the status and the server's message.
+  async function api(path, { method = 'GET', body } = {}) {
+    const res = await fetch(path, {
+      method,
+      headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined,
+      credentials: 'same-origin',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(data.error || 'Something went wrong. Please try again.');
+      err.status = res.status; err.data = data;
+      throw err;
+    }
+    return data;
+  }
+  const STATUS_LABELS = { new: 'Received', confirmed: 'Confirmed', shipped: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled' };
+
   // Follow an external link from a submit handler (window.open is blocked in some embedded views).
   const openExternal = (url) => {
     const a = document.createElement('a');
@@ -417,7 +439,7 @@
   document.querySelectorAll('[data-cart-count]').forEach((el) => { el.textContent = cart.count(); });
 
   window.Decoture = {
-    CONFIG, catalog, products, bySlug, byVariant, cart, orders, FAMILIES, familyOf,
+    CONFIG, catalog, products, bySlug, byVariant, cart, orders, FAMILIES, familyOf, live, api, STATUS_LABELS, formatDate,
     money, priceLabel, variantPrice, productFromPrice, stockState, productStock, firstImage, productUrl, esc,
     cardHTML, lineItemsHTML, totalsHTML, bindLineItems, reveal, toast, openDrawer, openExternal, whatsappLink, mailLink, PLACEHOLDER,
   };
