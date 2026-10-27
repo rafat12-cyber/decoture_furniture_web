@@ -531,7 +531,13 @@ textarea.input { min-height: 110px; resize: vertical; }
   background: radial-gradient(circle at var(--gx, 73%) var(--gy, 54%), rgba(212, 175, 55, 0.16) 0%, rgba(212, 175, 55, 0.05) 26%, rgba(28, 35, 33, 0) 46%); /* taste-skill-ignore: spotlight behind the chair */
   transition: background-position 600ms var(--ease-out);
 }
-.scene-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.scene-chair {
+  position: absolute; left: 0; right: 0; bottom: 3svh; height: 88svh; perspective: 1800px; pointer-events: none;
+  opacity: 0; transform: translateY(6%); transition: opacity 900ms var(--ease-out), transform 1200ms var(--ease-out);
+}
+.scene.is-in .scene-chair { opacity: 1; transform: none; }
+.scene-view { position: absolute; left: 50%; bottom: 0; height: 100%; transform-origin: 50% 100%; will-change: transform, opacity; }
+.scene-view img { display: block; height: 100%; width: auto; max-width: none; filter: drop-shadow(0 30px 40px rgba(0, 0, 0, 0.35)); }
 .scene-panel {
   position: absolute; left: var(--margin); bottom: clamp(72px, 13vh, 140px);
   width: min(36rem, 44vw); display: grid; gap: 20px; justify-items: start;
@@ -547,18 +553,16 @@ textarea.input { min-height: 110px; resize: vertical; }
 .scene-panel.is-active > :nth-child(4) { transition-delay: 270ms; }
 .scene-panel--hero > .hero-title { transform: none; opacity: 1; }
 .scene-text { max-width: 34ch; font-size: clamp(1.0625rem, 0.95rem + 0.4vw, 1.3125rem); line-height: 1.45; color: var(--ink-soft); }
-.scene-colour { display: flex; align-items: center; gap: 16px; font-size: 1.125rem; }
-.scene-dots { display: flex; gap: 8px; }
-.scene-dots i { width: 18px; height: 18px; border-radius: 50%; background: var(--c); border: 1px solid rgba(244, 239, 230, 0.25); outline: 1px solid transparent; outline-offset: 3px; transition: transform 300ms var(--ease-out), outline-color 300ms var(--ease-out); }
-.scene-dots i[aria-current="true"] { transform: scale(1.3); outline-color: var(--gold); }
-.scene-labels { position: absolute; inset: 0; pointer-events: none; }
 .scene-label {
-  position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 10px;
+  position: absolute; left: var(--x); top: var(--y); display: flex; align-items: center; gap: 10px;
+  padding: 4px 10px 4px 0; border-radius: 999px; background: rgba(28, 35, 33, 0.72);
   font-size: 0.9375rem; white-space: nowrap; color: var(--cream);
   opacity: 0; transition: opacity 400ms var(--ease-out);
 }
 .scene-label::before { content: ''; width: 9px; height: 9px; margin-left: -4px; border-radius: 50%; background: var(--gold); }
 .scene-label.is-on { opacity: 1; }
+.scene-label--left { flex-direction: row-reverse; padding: 4px 0 4px 10px; transform: translateX(-100%); }
+.scene-label--left::before { margin: 0 -4px 0 0; }
 .scene-meter {
   position: absolute; left: 50%; bottom: 32px; transform: translateX(-50%);
   display: flex; align-items: center; gap: 14px; font-size: 0.8125rem; color: var(--ink-soft);
@@ -567,11 +571,10 @@ textarea.input { min-height: 110px; resize: vertical; }
 .scene-meter b { position: absolute; inset: 0; background: var(--gold); transform-origin: 0 50%; transform: scaleX(0); }
 .scene .hero-scroll { transition: opacity 400ms ease; }
 .scene:not(.is-start) .hero-scroll { opacity: 0; }
-/* Without WebGL or with reduced motion: one screen, the chair (or the brand photo) still. */
+/* With reduced motion: one screen, the chair still. */
 .scene--static { height: auto; }
 .scene--static .scene-sticky { position: relative; height: 100svh; min-height: 620px; }
-.scene--static .scene-panel:not(.scene-panel--hero), .scene--static .scene-meter, .scene--static .scene-labels { display: none; }
-.scene--flat .scene-glow { background: url("../img/brand/hang-tags.jpg") center / cover no-repeat; opacity: 0.45; }
+.scene--static .scene-panel:not(.scene-panel--hero), .scene--static .scene-meter { display: none; }
 @media (max-width: 860px) {
   .scene { height: 520vh; }
   .scene-panel, .scene-panel--hero, .scene-panel--right {
@@ -583,6 +586,8 @@ textarea.input { min-height: 110px; resize: vertical; }
   }
   .scene-sticky { z-index: 0; }
   .scene-meter { bottom: 24px; }
+  .scene-chair { top: calc(var(--header-h) + 1svh); bottom: auto; height: 46svh; }
+  .scene-label { font-size: 0.8125rem; }
 }
 
 .hero-title { font-size: clamp(3.25rem, 0.8rem + 7.4vw, 9.5rem); line-height: 0.92; font-weight: 300; letter-spacing: -0.05em; }
