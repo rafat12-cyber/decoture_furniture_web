@@ -179,8 +179,12 @@
     form.phone.setAttribute('aria-invalid', String(!phoneOk));
     if (!name || !phoneOk) { err.textContent = !name ? 'Please add your name.' : 'Please add a phone number we can call.'; return; }
     err.textContent = '';
-    D.openExternal(D.whatsappLink(`Hello Decoture, I would like a quote for office chairs.\nName: ${name}\nPhone: ${phone}`));
+    if (!D.live) { D.openExternal(D.whatsappLink(`Hello Decoture, I would like a quote for office chairs.\nName: ${name}\nPhone: ${phone}`)); return; }
+    D.api('/api/quotes', { method: 'POST', body: { name, phone, items: 'Asked for a call back from the home page' } })
+      .then(() => { form.reset(); D.toast(`Thank you, ${name.split(' ')[0]}. We will call you soon.`); })
+      .catch((ex) => { err.textContent = ex.status ? ex.message : 'We could not reach the store. Please call us instead.'; });
   });
+  if (D.live) document.querySelector('[data-quote-note]').textContent = 'We call you back, usually within one working day.';
 
   D.reveal();
 })();

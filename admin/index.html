@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Admin · Decoture</title>
+  <meta name="theme-color" content="#1c2321">
+  <link rel="icon" href="/assets/img/logo/mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <!-- Login -->
+  <main class="login" data-view="login" hidden>
+    <form class="login-card" data-login-form novalidate>
+      <img src="/assets/img/logo/lockup.svg" alt="decoture" width="220" height="80">
+      <h1>Store admin</h1>
+      <label>Username<input name="username" autocomplete="username" required></label>
+      <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+      <p class="error" data-login-error role="alert"></p>
+      <button class="btn" type="submit">Log in</button>
+    </form>
+  </main>
+
+  <!-- Admin app -->
+  <div class="shell" data-view="app" hidden>
+    <aside class="side">
+      <a class="side-brand" href="#overview"><img src="/assets/img/logo/mark.svg" alt="" width="30" height="20"><span>Decoture admin</span></a>
+      <nav class="side-nav" aria-label="Admin">
+        <a href="#overview" data-tab="overview">Overview</a>
+        <a href="#orders" data-tab="orders">Orders <span class="badge" data-badge="orders" hidden></span></a>
+        <a href="#products" data-tab="products">Products &amp; stock</a>
+        <a href="#quotes" data-tab="quotes">Office quotes <span class="badge" data-badge="quotes" hidden></span></a>
+        <a href="#settings" data-tab="settings">Settings</a>
+      </nav>
+      <div class="side-foot">
+        <a href="/" target="_blank" rel="noopener">View the store</a>
+        <button class="linkish" type="button" data-logout>Log out <span data-whoami></span></button>
+      </div>
+    </aside>
+    <main class="main" data-main tabindex="-1"></main>
+  </div>
+
+  <div class="panel-backdrop" data-panel-backdrop hidden></div>
+  <aside class="panel" data-panel aria-modal="true" role="dialog" aria-labelledby="panel-title" hidden></aside>
+  <div class="toast" data-toast role="status" aria-live="polite"></div>
+
+  <script src="/admin/admin.js"></script>
+</body>
+</html>

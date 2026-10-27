@@ -336,6 +336,20 @@ ul, ol { padding: 0; list-style: none; }
 .drawer-empty { padding: 48px 0; display: grid; gap: 18px; justify-items: start; color: var(--ink-soft); }
 
 /* ---------- Cart page + checkout ---------- */
+/* ---------- Order tracking ---------- */
+.track-status { font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem); font-weight: 300; letter-spacing: -0.02em; color: var(--gold); }
+.track-status--cancelled { color: var(--danger); }
+.track-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; counter-reset: step; }
+.track-steps li { display: grid; gap: 4px; padding-top: 14px; border-top: 3px solid var(--charcoal-3); font-size: 14px; color: var(--ink-soft); }
+.track-steps li.is-done { border-top-color: var(--gold); color: var(--ink); }
+.track-steps li.is-current span { font-weight: 500; }
+.track-steps small { color: var(--ink-soft); font-size: 12px; }
+.track-notes { display: grid; gap: 10px; font-size: 15px; }
+.track-line { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; padding-block: 4px; }
+.track-line span:last-child { font-variant-numeric: tabular-nums; }
+.track-result { position: static; }
+@media (max-width: 520px) { .track-steps { grid-template-columns: 1fr 1fr; row-gap: 16px; } }
+
 .two-col { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr); gap: clamp(24px, 4vw, 64px); padding: 0 var(--margin) 120px; align-items: start; }
 .summary { position: sticky; top: calc(var(--header-h) + 16px); background: var(--charcoal-2); padding: 24px; display: grid; gap: 18px; }
 .summary h2 { font-size: 1.125rem; font-weight: 500; }

@@ -1,4 +1,5 @@
-// Checkout: cash on delivery order request, saved in the browser and handed to WhatsApp or email.
+// Checkout: cash on delivery. On the live store the order goes to the server; on a static host
+// it is saved in the browser and handed to WhatsApp or email.
 (function () {
   'use strict';
   const D = window.Decoture;
@@ -42,10 +43,7 @@
       return;
     }
     err.textContent = '';
-    const t = D.cart.totals();
-    const order = {
-      id: D.orders.newId(),
-      createdAt: new Date().toISOString(),
+    const details = {
       name: form.name.value.trim(),
       phone: form.phone.value.trim(),
       email: form.email.value.trim(),
@@ -54,7 +52,47 @@
       address: form.address.value.trim(),
       note: form.note.value.trim(),
       payment: form.payment.value,
-      delivery: form.district.value === 'Dhaka' ? 'Inside Dhaka, charge confirmed by phone' : 'Outside Dhaka, charge confirmed by phone',
+    };
+    if (D.live) placeOnServer(details); else placeInBrowser(details);
+  });
+
+  // The live store: the server checks stock and prices, saves the order and holds the chairs.
+  const submit = form.querySelector('[type="submit"]');
+  async function placeOnServer(details) {
+    submit.disabled = true;
+    submit.textContent = 'Placing your order…';
+    try {
+      const { order } = await D.api('/api/orders', {
+        method: 'POST',
+        body: { ...details, items: D.cart.items().map((i) => ({ id: i.id, qty: i.qty })) },
+      });
+      D.orders.save({ ...order, ...details, server: true });
+      D.cart.clear();
+      location.href = `order.html?id=${encodeURIComponent(order.id)}`;
+    } catch (e) {
+      submit.disabled = false;
+      submit.textContent = 'Place order';
+      const data = e.data || {};
+      if (e.status === 409 && data.variant) {
+        // Stock changed since the cart was filled: fix the cart and say what happened.
+        if (data.available > 0) D.cart.setQty(data.variant, data.available); else D.cart.remove(data.variant);
+        err.textContent = `${e.message} We have updated your cart. Please check it and place the order again.`;
+        if (!D.cart.count()) location.replace('cart.html');
+        return;
+      }
+      if (data.field && form[data.field]) { form[data.field].setAttribute('aria-invalid', 'true'); form[data.field].focus(); }
+      err.textContent = e.status ? e.message : 'We could not reach the store. Check your connection and try again, or call us on ' + D.CONFIG.phone + '.';
+    }
+  }
+
+  // Static hosting: keep the order in this browser and hand it to WhatsApp or email.
+  function placeInBrowser(details) {
+    const t = D.cart.totals();
+    const order = {
+      id: D.orders.newId(),
+      createdAt: new Date().toISOString(),
+      ...details,
+      delivery: details.district === 'Dhaka' ? 'Inside Dhaka, charge confirmed by phone' : 'Outside Dhaka, charge confirmed by phone',
       items: D.cart.items().map((i) => ({ id: i.id, sku: i.variant.sku, qty: i.qty, price: D.variantPrice(i.variant), image: i.variant.image })),
       subtotal: t.subtotal,
       unpriced: t.unpriced,
@@ -62,5 +100,5 @@
     D.orders.save(order);
     D.cart.clear();
     location.href = `order.html?id=${encodeURIComponent(order.id)}`;
-  });
+  }
 })();
