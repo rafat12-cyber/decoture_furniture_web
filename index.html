@@ -17,22 +17,56 @@
   <header data-site-header></header>
 
   <main id="main" tabindex="-1">
-    <!-- Hero: the brand's own photograph, the tagline as the title -->
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-media" aria-hidden="true">
-        <img data-parallax="0.18" src="assets/img/brand/hang-tags.jpg" alt="" width="1800" height="1005">
-      </div>
-      <div class="hero-content wrap">
-        <h1 class="hero-title" id="hero-title" data-split>Style. Comfort. <em>Crafted.</em></h1>
-        <div class="hero-foot">
-          <p class="hero-lead" data-reveal style="--d:500ms">Imported office chairs, ready in Dhaka. A two-year warranty on the moving parts, from <span data-from-price>৳8,900</span>, cash on delivery.</p>
-          <div class="hero-actions" data-reveal style="--d:650ms">
+    <!-- Scene: a 3D chair that turns, moves, changes colour and comes apart as you scroll -->
+    <section class="scene is-start" data-scene aria-labelledby="hero-title">
+      <div class="scene-sticky">
+        <div class="scene-glow" aria-hidden="true"></div>
+        <canvas class="scene-canvas" data-scene-canvas aria-hidden="true"></canvas>
+        <div class="scene-labels" aria-hidden="true">
+          <span class="scene-label" data-scene-label="mech">Mechanism</span>
+          <span class="scene-label" data-scene-label="lift">Gas lift</span>
+          <span class="scene-label" data-scene-label="base">Base</span>
+          <span class="scene-label" data-scene-label="wheels">Wheels</span>
+        </div>
+
+        <div class="scene-panel scene-panel--hero is-active" data-scene-step>
+          <h1 class="hero-title" id="hero-title" data-split>Style. Comfort. <em>Crafted.</em></h1>
+          <p class="hero-lead">Imported office chairs, ready in Dhaka. A two-year warranty on the moving parts, from <span data-from-price>৳8,900</span>, cash on delivery.</p>
+          <div class="hero-actions">
             <a class="button button--lg" href="shop.html" data-magnetic="0.25">Shop the collection</a>
             <a class="link" href="offices.html">Bulk orders for offices</a>
           </div>
         </div>
+        <div class="scene-panel scene-panel--right" data-scene-step>
+          <h2 class="h2">Shaped for <em>long days.</em></h2>
+          <p class="scene-text">A high back that curves around you, lumbar support where your spine needs it, and a seat with a soft waterfall edge.</p>
+        </div>
+        <div class="scene-panel" data-scene-step>
+          <h2 class="h2">Built with <em>foreign fittings.</em></h2>
+          <p class="scene-text">Every chair on our list is imported and assembled with fully foreign fittings, from the tilt mechanism to the casters.</p>
+        </div>
+        <div class="scene-panel" data-scene-step>
+          <h2 class="h2">Pick its <em>colour.</em></h2>
+          <p class="scene-text">Most models come in two to four colourways, all in stock in our Dhaka warehouse.</p>
+          <p class="scene-colour"><span class="scene-dots" aria-hidden="true"><i data-scene-dot style="--c:#1d1d1f"></i><i data-scene-dot style="--c:#9e3434"></i><i data-scene-dot style="--c:#efece4"></i><i data-scene-dot style="--c:#2f5d8a"></i><i data-scene-dot style="--c:#2f6b55"></i><i data-scene-dot style="--c:#c99a6b"></i></span><span data-scene-colour aria-live="polite">Black</span></p>
+        </div>
+        <div class="scene-panel scene-panel--right" data-scene-step>
+          <h2 class="h2">Two years. <em>Every moving part.</em></h2>
+          <p class="scene-text">The mechanism, gas lift, base and wheels are covered by the Decoture warranty card that comes with every chair.</p>
+          <p class="small soft">CDS conference chairs carry one year of free service on manufacturing faults.</p>
+        </div>
+        <div class="scene-panel" data-scene-step>
+          <h2 class="h2">Find <em>yours.</em></h2>
+          <p class="scene-text">56 models and 92 colourways, delivered across Dhaka with cash on delivery.</p>
+          <div class="hero-actions">
+            <a class="button button--lg" href="shop.html" data-magnetic="0.25">Shop all chairs</a>
+            <a class="link" href="offices.html">Bulk orders for offices</a>
+          </div>
+        </div>
+
+        <div class="scene-meter" aria-hidden="true"><i><b data-scene-bar></b></i></div>
+        <div class="hero-scroll" aria-hidden="true"><span></span></div>
       </div>
-      <div class="hero-scroll" aria-hidden="true"><span></span></div>
     </section>
 
     <!-- A band of the four collections that speeds up with the scroll -->
@@ -95,24 +129,6 @@
       <div class="product-grid product-grid--featured" data-featured></div>
     </section>
 
-    <!-- Warranty -->
-    <section class="warranty wrap" aria-labelledby="warranty-title">
-      <figure class="warranty-media" data-reveal="wipe">
-        <img data-parallax="0.12" src="assets/img/brand/warranty-card.jpg" alt="Decoture warranty certificate, care guide and thank-you card" width="1800" height="1005" loading="lazy">
-      </figure>
-      <div class="warranty-copy">
-        <h2 class="h2" id="warranty-title" data-split>Two years. <em>Every moving part.</em></h2>
-        <p class="soft" data-reveal>Every chair is built with fully foreign fittings and leaves the warehouse with a Decoture warranty card. If something under the seat fails, it is covered.</p>
-        <ul class="checks">
-          <li data-reveal style="--d:0ms"><svg viewBox="0 0 24 24" aria-hidden="true"><path pathLength="1" d="M4 12.5l5 5L20 6.5"/></svg>Mechanism</li>
-          <li data-reveal style="--d:120ms"><svg viewBox="0 0 24 24" aria-hidden="true"><path pathLength="1" d="M4 12.5l5 5L20 6.5"/></svg>Gas lift</li>
-          <li data-reveal style="--d:240ms"><svg viewBox="0 0 24 24" aria-hidden="true"><path pathLength="1" d="M4 12.5l5 5L20 6.5"/></svg>Base</li>
-          <li data-reveal style="--d:360ms"><svg viewBox="0 0 24 24" aria-hidden="true"><path pathLength="1" d="M4 12.5l5 5L20 6.5"/></svg>Wheels</li>
-        </ul>
-        <p class="small soft" data-reveal>CDS conference chairs carry one year of free service on manufacturing faults.</p>
-      </div>
-    </section>
-
     <!-- Office quote on the gold field -->
     <section class="field" aria-labelledby="quote-title">
       <div class="band band--chairs" data-marquee-band data-speed="0.5" aria-hidden="true"><div class="band-track" data-chair-band></div></div>
@@ -136,6 +152,7 @@
   <script src="assets/js/catalog.js"></script>
   <script src="assets/js/app.js"></script>
   <script src="assets/js/motion.js"></script>
+  <script src="assets/js/chair3d.js"></script>
   <script src="assets/js/home.js"></script>
 </body>
 </html>
