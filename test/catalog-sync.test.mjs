@@ -20,6 +20,8 @@ test('a new price list updates, adds and hides chairs, and leaves admin edits al
     assert.deepEqual(a1.gallery, ['assets/img/products/a1-black.webp', 'assets/img/products/a1-black-2.webp', 'assets/img/products/a1-black-3.webp']);
 
     db.updateVariant('a1-black', { stock: 3 });
+    db.setProductDetails('A1', { name: 'Aster', features: [], description: '', collection: '', warrantyYears: null });
+    db.addPhoto('a1-black', 'uploads/products/a1-new.jpg');
     db.close();
     db = openDb(file, { seedCsv: csv });
     assert.equal(db.variant('a1-black').stock, 3, 'same list: the admin edit stays');
@@ -29,6 +31,8 @@ test('a new price list updates, adds and hides chairs, and leaves admin edits al
     db = openDb(file, { seedCsv: csv });
     assert.equal(db.variant('a1-black').stock, 40, 'new list: its stock and price win');
     assert.equal(db.variant('a1-black').price, 9500);
+    assert.equal(db.variant('a1-black').gallery.at(-1), 'uploads/products/a1-new.jpg', 'photos changed in the admin panel are kept');
+    assert.equal(db.catalog().products.find((p) => p.slug === 'a1').name, 'Aster A1', 'names typed in the admin panel are kept');
     assert.equal(db.variant('b2-grey').active, false, 'a chair no longer listed is hidden, not deleted');
     assert.deepEqual(db.catalog().products.map((p) => p.slug).sort(), ['a1', 'c3']);
     db.close();
