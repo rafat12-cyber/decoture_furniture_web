@@ -65,11 +65,12 @@
   }
 
   // ---------- Routing ----------
-  const VIEWS = { overview, orders, products, quotes, settings };
+  const VIEWS = { overview, orders, products, stock, quotes, settings };
   function route() {
     const [tab, arg] = (location.hash.slice(1) || 'overview').split('/');
     const view = VIEWS[tab] ? tab : 'overview';
-    $$('[data-tab]').forEach((a) => { if (a.dataset.tab === view) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+    const navTab = view === 'stock' ? 'products' : view;
+    $$('[data-tab]').forEach((a) => { if (a.dataset.tab === navTab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     VIEWS[view](arg).catch((e) => { if (e.status) main.innerHTML = `<p class="error">${esc(e.message)}</p>`; });
     refreshBadges();
   }
@@ -98,7 +99,7 @@
         <section class="card"><h2>Latest orders</h2>${ordersTable(recent.slice(0, 6), true)}</section>
         <section class="card"><h2>Low stock (10 or fewer)</h2>${s.lowStock.length ? `
           <div class="table-wrap"><table><thead><tr><th>Chair</th><th class="num">Stock</th></tr></thead><tbody>
-          ${s.lowStock.map((v) => `<tr class="is-click" data-goto="products/${esc(v.id)}"><td><i class="swatch" style="--c:${esc(v.swatch)}"></i>${esc(v.model)} ${esc(v.colour)}</td><td class="num ${v.stock <= 0 ? 'stock-out' : 'stock-low'}">${v.stock}</td></tr>`).join('')}
+          ${s.lowStock.map((v) => `<tr class="is-click" data-goto="stock/${esc(v.id)}"><td><i class="swatch" style="--c:${esc(v.swatch)}"></i>${esc(v.name || v.model)} ${esc(v.colour)}</td><td class="num ${v.stock <= 0 ? 'stock-out' : 'stock-low'}">${v.stock}</td></tr>`).join('')}
           </tbody></table></div>` : '<p class="soft">Everything is well stocked.</p>'}
         </section>
       </div>`;
@@ -182,10 +183,10 @@
         <label>Status
           <select name="status">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}"${k === o.status ? ' selected' : ''}>${v}</option>`).join('')}</select>
         </label>
-        <label class="full">Message for the customer <span class="soft">(shown on their tracking page; emailed if they gave an email)</span>
+        <label class="full"><span>Message for the customer <span class="soft">(shown on their tracking page; emailed if they gave an email)</span></span>
           <input name="note" maxlength="300" placeholder="e.g. Delivery booked for Thursday, 3 pm">
         </label>
-        <label class="full">Internal note <span class="soft">(only the team sees this)</span>
+        <label class="full"><span>Internal note <span class="soft">(only the team sees this)</span></span>
           <textarea name="adminNote" maxlength="2000">${esc(o.adminNote)}</textarea>
         </label>
         <p class="error full" data-order-error role="alert"></p>
@@ -208,23 +209,218 @@
   }
 
   // ---------- Products ----------
+  // #products lists every chair; #products/<slug> is the edit page for one chair and all its
+  // colours. #stock is the quick table for changing many prices and stock counts at once.
   let productState = { q: '', collection: '' };
-  async function products(focusId) {
-    const { variants, collections } = await api('/api/admin/variants');
+  async function products(arg) {
+    if (arg) return editProduct(arg);
+    const { products: list, collections } = await api('/api/admin/products');
     main.innerHTML = `
-      <div class="head"><h1>Products &amp; stock</h1><button class="btn btn--small" type="button" data-add-variant>Add a colourway</button></div>
+      <div class="head"><h1>Products</h1><div class="actions"><a class="btn btn--ghost btn--small" href="#stock">Quick stock edit</a><button class="btn btn--small" type="button" data-add-variant>Add a chair</button></div></div>
       <div class="tools">
-        <input type="search" placeholder="Search model or colour" value="${esc(productState.q)}" data-search aria-label="Search products">
-        <select data-collection aria-label="Collection"><option value="">All collections</option>${Object.entries(collections).map(([k, v]) => `<option value="${k}"${productState.collection === k ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select>
+        <input type="search" placeholder="Search name or model" value="${esc(productState.q)}" data-search aria-label="Search products">
+        <select data-collection aria-label="Category"><option value="">All categories</option>${Object.entries(collections).map(([k, v]) => `<option value="${k}"${productState.collection === k ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select>
         <span class="soft" data-count></span>
       </div>
-      <p class="soft">Change a price, sale price or stock and press Save on that row. Leave the sale price empty for no sale. Untick "On sale" to hide a chair from the store. Click a photo to replace it.</p>
+      <p class="soft">Click a chair to edit its name, details, colours, prices, stock and photos.</p>
       <div class="table-wrap"><table>
-        <thead><tr><th>Photo</th><th>Chair</th><th>Collection</th><th class="num">Price ৳</th><th class="num">Sale ৳</th><th class="num">Stock</th><th>On sale</th><th></th></tr></thead>
+        <thead><tr><th>Photo</th><th>Chair</th><th>Category</th><th class="num">Colours</th><th class="num">Stock</th><th class="num">From</th><th></th></tr></thead>
+        <tbody>${list.map((p) => `
+          <tr class="is-click ${p.onSale ? '' : 'is-off'}" data-goto="products/${esc(p.slug)}" data-search-text="${esc(`${p.name} ${p.model}`.toLowerCase())}" data-coll="${esc(p.collection)}">
+            <td><span class="prod-thumb">${p.image ? `<img src="/${esc(p.image)}" alt="" loading="lazy">` : ''}</span></td>
+            <td><strong style="font-weight:500">${esc(p.name)}</strong>${p.onSale ? '' : ' <span class="pill">Hidden</span>'}</td>
+            <td class="soft">${esc(collections[p.collection] || p.collection)}</td>
+            <td class="num">${p.onSale === p.colours ? p.colours : `${p.onSale} of ${p.colours}`}</td>
+            <td class="num ${p.stock <= 0 ? 'stock-out' : p.stock <= 10 ? 'stock-low' : ''}">${p.stock}</td>
+            <td class="num">${p.from == null ? '<span class="soft">On request</span>' : money(p.from)}</td>
+            <td><a class="btn btn--ghost btn--small" href="#products/${esc(p.slug)}">Edit</a></td>
+          </tr>`).join('')}</tbody>
+      </table></div>`;
+    const rows = $$('[data-goto]', main);
+    const filter = () => {
+      const q = productState.q.trim().toLowerCase();
+      let n = 0;
+      rows.forEach((tr) => {
+        const show = (!q || tr.dataset.searchText.includes(q)) && (!productState.collection || tr.dataset.coll === productState.collection);
+        tr.hidden = !show; if (show) n += 1;
+      });
+      $('[data-count]', main).textContent = `${n} chairs`;
+    };
+    $('[data-search]', main).addEventListener('input', (e) => { productState.q = e.target.value; filter(); });
+    $('[data-collection]', main).addEventListener('change', (e) => { productState.collection = e.target.value; filter(); });
+    rows.forEach((tr) => tr.addEventListener('click', (e) => { if (!e.target.closest('a')) location.hash = tr.dataset.goto; }));
+    filter();
+    $('[data-add-variant]', main).addEventListener('click', () => addVariant(collections));
+  }
+
+  // ---------- One chair ----------
+  async function editProduct(key) {
+    let data;
+    try { data = await api(`/api/admin/products/${encodeURIComponent(key)}`); } catch (ex) {
+      // Older links name a colourway (e.g. from the low-stock list): open its chair.
+      if (ex.status === 404) {
+        const { variants } = await api('/api/admin/variants');
+        const v = variants.find((x) => x.id === key);
+        if (v) { location.replace(`#products/${v.model.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`); return; }
+      }
+      throw ex;
+    }
+    const { product: p, collections } = data;
+    const d = p.defaults;
+    main.innerHTML = `
+      <div class="head">
+        <div style="display:grid;gap:6px"><a class="soft" href="#products">← All products</a><h1>${esc(p.name)}</h1></div>
+        <div class="actions"><a class="btn btn--ghost btn--small" href="/product.html?m=${encodeURIComponent(p.slug)}" target="_blank" rel="noopener">View in store</a><button class="btn btn--small" type="button" data-add-colour>Add a colour</button></div>
+      </div>
+
+      <section class="card">
+        <h2>Details</h2>
+        <form class="form-grid" data-details novalidate>
+          <label><span>Name <span class="soft">(shown with the model number)</span></span><input name="name" maxlength="40" value="${esc(p.details?.name || '')}" placeholder="${esc(d.title || 'No name')}"></label>
+          <label>Model number<input value="${esc(p.model)}" disabled></label>
+          <label>Category<select name="collection">${Object.entries(collections).map(([k, v]) => `<option value="${k}"${p.collection === k ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+          <label>Warranty (years)<input name="warrantyYears" inputmode="numeric" value="${p.warrantyYears ?? ''}"></label>
+          <label class="full"><span>Features <span class="soft">(one per line, shown under the name)</span></span><textarea name="features" rows="3" placeholder="${esc(d.features.join('\n') || 'e.g. Headrest')}">${esc(p.details?.features?.join('\n') || '')}</textarea></label>
+          <label class="full">Description<textarea name="description" rows="4" maxlength="1500" placeholder="${esc(d.description)}">${esc(p.details?.description || '')}</textarea></label>
+          <p class="soft full">Leave a field empty to use the standard text shown in grey.</p>
+          <p class="error full" data-details-error role="alert"></p>
+          <div class="actions full"><button class="btn" type="submit">Save details</button></div>
+        </form>
+      </section>
+
+      <div class="head"><h2 style="font-size:1.0625rem;font-weight:500">Colours, prices and photos</h2></div>
+      ${p.variants.map((v) => `
+        <section class="card variant ${v.active ? '' : 'is-off'}" data-variant="${esc(v.id)}">
+          <div class="head"><h2><i class="swatch" style="--c:${esc(v.swatch)}"></i>${esc(v.colour)} ${v.code ? `<span class="soft">· ${esc(v.code)}</span>` : ''}</h2>${v.active ? '' : '<span class="pill">Hidden from the store</span>'}</div>
+          <form class="variant-grid" data-variant-form novalidate>
+            <label>Price ৳<input name="price" inputmode="numeric" value="${v.price ?? ''}" placeholder="On request"></label>
+            <label>Sale price ৳<input name="salePrice" inputmode="numeric" value="${v.salePrice ?? ''}" placeholder="None"></label>
+            <label>Stock<input name="stock" inputmode="numeric" value="${v.stock}"></label>
+            <label>Swatch<input name="swatch" type="color" value="${esc(v.swatch)}" style="padding:2px"></label>
+            <label class="check"><input type="checkbox" name="active" ${v.active ? 'checked' : ''}> On sale</label>
+            <div class="actions"><button class="btn btn--small" type="submit" data-save disabled>Save</button></div>
+          </form>
+          <div>
+            <h3 class="soft" style="font-size:13px;font-weight:500;margin-bottom:8px">Photos <span class="soft">· the first is the main photo; add every angle you have</span></h3>
+            <div class="photos" data-photos></div>
+          </div>
+        </section>`).join('')}
+      <input type="file" accept="image/jpeg,image/png,image/webp" multiple data-file hidden>`;
+
+    // Details
+    $('[data-details]', main).addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = e.currentTarget; const err = $('[data-details-error]', main);
+      err.textContent = '';
+      try {
+        const { product } = await api(`/api/admin/products/${encodeURIComponent(p.slug)}`, {
+          method: 'PUT',
+          body: { name: f.name.value, collection: f.collection.value, warrantyYears: f.warrantyYears.value.trim(), features: f.features.value, description: f.description.value },
+        });
+        $('h1', main).textContent = product.name;
+        toast(`${product.name} saved. The store shows it now.`);
+      } catch (ex) { err.textContent = ex.message; }
+    });
+
+    // Colours: price, stock, swatch, on sale
+    $$('[data-variant]', main).forEach((card) => {
+      const id = card.dataset.variant;
+      const f = $('[data-variant-form]', card);
+      const save = $('[data-save]', f);
+      $$('input', f).forEach((inp) => inp.addEventListener('input', () => { card.classList.add('is-dirty'); save.disabled = false; }));
+      f.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const val = (n) => { const s = f[n].value.trim().replace(/,/g, ''); return s === '' ? null : Number(s); };
+        save.disabled = true;
+        try {
+          const { variant } = await api(`/api/admin/variants/${id}`, {
+            method: 'PATCH',
+            body: { price: val('price'), salePrice: val('salePrice'), stock: val('stock') ?? 0, swatch: f.swatch.value, active: f.active.checked },
+          });
+          card.classList.remove('is-dirty');
+          card.classList.toggle('is-off', !variant.active);
+          $('.swatch', card).style.setProperty('--c', variant.swatch);
+          toast(`${variant.colour} saved. The store shows it now.`);
+        } catch (ex) { save.disabled = false; toast(ex.message); }
+      });
+      renderPhotos(card, p.variants.find((v) => v.id === id));
+    });
+
+    // Photos: add (several at once), make main, move, remove. Each change saves at once.
+    const file = $('[data-file]', main);
+    let target = null;
+    file.addEventListener('change', async () => {
+      const files = [...file.files];
+      if (!files.length || !target) return;
+      const card = target; const add = $('[data-add-photo]', card);
+      add.disabled = true; add.textContent = 'Uploading…';
+      let v = null;
+      try {
+        for (const f of files) {
+          const dataUrl = await resizeImage(f, 1600);
+          ({ variant: v } = await api(`/api/admin/variants/${card.dataset.variant}/photos`, { method: 'POST', body: { dataUrl } }));
+        }
+        toast(files.length === 1 ? 'Photo added' : `${files.length} photos added`);
+      } catch (ex) { toast(ex.message); }
+      if (v) renderPhotos(card, v); else { add.disabled = false; add.textContent = '+ Add photos'; }
+    });
+
+    function renderPhotos(card, v) {
+      const list = [v.image, ...v.gallery].filter(Boolean);
+      const box = $('[data-photos]', card);
+      box.innerHTML = `${list.map((src, i) => `
+        <figure class="photo" data-src="${esc(src)}">
+          <img src="/${esc(src)}" alt="Photo ${i + 1} of ${esc(v.colour)}" loading="lazy">
+          ${i === 0 ? '<span class="photo-main">Main</span>' : ''}
+          <figcaption>
+            <button type="button" data-move="-1" ${i === 0 ? 'disabled' : ''} aria-label="Move left">←</button>
+            ${i === 0 ? '' : '<button type="button" data-main>Main</button>'}
+            <button type="button" data-move="1" ${i === list.length - 1 ? 'disabled' : ''} aria-label="Move right">→</button>
+            <button type="button" data-remove aria-label="Remove photo">✕</button>
+          </figcaption>
+        </figure>`).join('')}
+        <button class="photo photo--add" type="button" data-add-photo>+ Add photos</button>`;
+      $('[data-add-photo]', box).addEventListener('click', () => { target = card; file.value = ''; file.click(); });
+      const put = async (next, msg) => {
+        try {
+          const { variant } = await api(`/api/admin/variants/${v.id}/photos`, { method: 'PUT', body: { photos: next } });
+          renderPhotos(card, variant); toast(msg);
+        } catch (ex) { toast(ex.message); }
+      };
+      $$('.photo[data-src]', box).forEach((fig, i) => {
+        $$('[data-move]', fig).forEach((b) => b.addEventListener('click', () => {
+          const next = [...list]; const j = i + Number(b.dataset.move);
+          [next[i], next[j]] = [next[j], next[i]];
+          put(next, 'Photo order saved');
+        }));
+        $('[data-main]', fig)?.addEventListener('click', () => put([list[i], ...list.filter((_, k) => k !== i)], 'Main photo changed'));
+        $('[data-remove]', fig).addEventListener('click', () => {
+          if (!confirm('Remove this photo from the chair?')) return;
+          put(list.filter((_, k) => k !== i), 'Photo removed');
+        });
+      });
+    }
+
+    $('[data-add-colour]', main).addEventListener('click', () => addVariant(collections, { model: p.model, collection: p.collection, warrantyYears: p.warrantyYears }));
+  }
+
+  // ---------- Quick stock edit ----------
+  async function stock(focusId) {
+    const { variants, collections } = await api('/api/admin/variants');
+    main.innerHTML = `
+      <div class="head"><div style="display:grid;gap:6px"><a class="soft" href="#products">← All products</a><h1>Quick stock edit</h1></div></div>
+      <div class="tools">
+        <input type="search" placeholder="Search name, model or colour" value="${esc(productState.q)}" data-search aria-label="Search products">
+        <select data-collection aria-label="Category"><option value="">All categories</option>${Object.entries(collections).map(([k, v]) => `<option value="${k}"${productState.collection === k ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select>
+        <span class="soft" data-count></span>
+      </div>
+      <p class="soft">Change a price, sale price or stock and press Save on that row. Leave the sale price empty for no sale. Untick "On sale" to hide a colour from the store. Click a chair's name to edit its photos and details.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Photo</th><th>Chair</th><th>Category</th><th class="num">Price ৳</th><th class="num">Sale ৳</th><th class="num">Stock</th><th>On sale</th><th></th></tr></thead>
         <tbody data-rows>${variants.map((v) => `
-          <tr data-id="${esc(v.id)}" class="${v.active ? '' : 'is-off'}" data-search-text="${esc(`${v.model} ${v.colour}`.toLowerCase())}" data-coll="${esc(v.collection)}">
-            <td><button class="prod-thumb" type="button" data-photo aria-label="Replace photo of ${esc(v.model)} ${esc(v.colour)}">${v.image ? `<img src="/${esc(v.image)}" alt="" loading="lazy">` : ''}<span>Photo</span></button></td>
-            <td><i class="swatch" style="--c:${esc(v.swatch)}"></i>${esc(v.model)} <span class="soft">${esc(v.colour)}</span></td>
+          <tr data-id="${esc(v.id)}" class="${v.active ? '' : 'is-off'}" data-search-text="${esc(`${v.name} ${v.colour}`.toLowerCase())}" data-coll="${esc(v.collection)}">
+            <td><span class="prod-thumb">${v.image ? `<img src="/${esc(v.image)}" alt="" loading="lazy">` : ''}</span></td>
+            <td><a href="#products/${esc(v.id)}"><i class="swatch" style="--c:${esc(v.swatch)}"></i>${esc(v.name)}</a> <span class="soft">${esc(v.colour)}</span></td>
             <td class="soft">${esc(collections[v.collection] || v.collection)}</td>
             <td class="num"><input class="cell-input" name="price" inputmode="numeric" value="${v.price ?? ''}" aria-label="Price"></td>
             <td class="num"><input class="cell-input" name="salePrice" inputmode="numeric" value="${v.salePrice ?? ''}" aria-label="Sale price"></td>
@@ -232,8 +428,7 @@
             <td><input type="checkbox" name="active" ${v.active ? 'checked' : ''} aria-label="On sale" style="width:auto;min-height:0"></td>
             <td><button class="btn btn--small" type="button" data-save disabled>Save</button></td>
           </tr>`).join('')}</tbody>
-      </table></div>
-      <input type="file" accept="image/jpeg,image/png,image/webp" data-file hidden>`;
+      </table></div>`;
 
     const rows = $$('[data-id]', main);
     const filter = () => {
@@ -266,33 +461,18 @@
           const stockInput = $('[name="stock"]', tr);
           stockInput.classList.toggle('stock-out', variant.stock <= 0);
           stockInput.classList.toggle('stock-low', variant.stock > 0 && variant.stock <= 10);
-          toast(`${variant.model} ${variant.colour} saved. The store shows it now.`);
+          toast(`${variant.name} ${variant.colour} saved. The store shows it now.`);
         } catch (ex) { save.disabled = false; toast(ex.message); }
       });
     });
 
-    // Photo upload: resized in the browser to at most 1600px, then sent as a JPEG.
-    const file = $('[data-file]', main);
-    let photoRow = null;
-    $$('[data-photo]', main).forEach((b) => b.addEventListener('click', () => { photoRow = b.closest('tr'); file.value = ''; file.click(); }));
-    file.addEventListener('change', async () => {
-      const f = file.files[0];
-      if (!f || !photoRow) return;
-      try {
-        const dataUrl = await resizeImage(f, 1600);
-        const { variant } = await api(`/api/admin/variants/${photoRow.dataset.id}/image`, { method: 'POST', body: { dataUrl } });
-        $('[data-photo]', photoRow).innerHTML = `<img src="/${esc(variant.image)}" alt=""><span>Photo</span>`;
-        toast(`New photo for ${variant.model} ${variant.colour}`);
-      } catch (ex) { toast(ex.message); }
-    });
-
-    $('[data-add-variant]', main).addEventListener('click', () => addVariant(collections));
     if (focusId) {
       const tr = rows.find((r) => r.dataset.id === focusId);
       if (tr) { tr.scrollIntoView({ block: 'center' }); $('[name="stock"]', tr).focus(); }
     }
   }
 
+  // Photos are resized in the browser to at most 1600px, then sent as a JPEG.
   function resizeImage(fileObj, max) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(fileObj);
@@ -312,19 +492,20 @@
     });
   }
 
-  function addVariant(collections) {
+  // preset: { model, collection, warrantyYears } when adding a colour to an existing chair.
+  function addVariant(collections, preset = null) {
     openPanel(`
-      <h2 id="panel-title">Add a colourway</h2>
-      <p class="soft">Use an existing model name to add a colour to it, or a new name for a new chair. You can add the photo from the table afterwards.</p>
+      <h2 id="panel-title">${preset ? `Add a colour to ${esc(preset.model)}` : 'Add a chair'}</h2>
+      <p class="soft">${preset ? 'The new colour is added to this chair.' : 'Use an existing model number to add a colour to it, or a new one for a new chair.'} You can add its photos on the next page.</p>
       <form class="form-grid" data-add-form novalidate>
-        <label>Model<input name="model" required placeholder="e.g. 6859A"></label>
+        <label>Model number<input name="model" required placeholder="e.g. 6859A" value="${esc(preset?.model || '')}" ${preset ? 'readonly' : ''}></label>
         <label>Colour<input name="colour" required placeholder="e.g. Black"></label>
-        <label>Collection<select name="collection">${Object.entries(collections).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select></label>
+        <label>Category<select name="collection">${Object.entries(collections).map(([k, v]) => `<option value="${k}"${preset?.collection === k ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
         <label>Swatch colour<input name="swatch" type="color" value="#1d1d1f" style="padding:2px"></label>
         <label>Price ৳<input name="price" inputmode="numeric" placeholder="e.g. 9500"></label>
         <label>Sale price ৳ <span class="soft">(optional)</span><input name="salePrice" inputmode="numeric"></label>
         <label>Stock<input name="stock" inputmode="numeric" value="0"></label>
-        <label>Warranty (years)<input name="warrantyYears" inputmode="numeric" value="2"></label>
+        <label>Warranty (years)<input name="warrantyYears" inputmode="numeric" value="${preset?.warrantyYears ?? 2}"></label>
         <p class="error full" data-add-error role="alert"></p>
         <div class="actions full"><button class="btn" type="submit">Add to the store</button></div>
       </form>`);
@@ -338,9 +519,9 @@
           body: { model: f.model.value, colour: f.colour.value, collection: f.collection.value, swatch: f.swatch.value, price: n('price'), salePrice: n('salePrice'), stock: n('stock') ?? 0, warrantyYears: n('warrantyYears') },
         });
         closePanel();
-        toast(`${variant.model} ${variant.colour} added`);
-        location.hash = `products/${variant.id}`;
-        route();
+        toast(`${variant.name} ${variant.colour} added`);
+        const next = `products/${variant.id}`;
+        if (location.hash.slice(1) === next) route(); else location.hash = next;
       } catch (ex) { $('[data-add-error]', panel).textContent = ex.message; }
     });
   }
@@ -386,7 +567,7 @@
           <label>Each extra chair (৳)<input name="extra" type="number" min="0" step="1" value="${z.extra}" required></label>
           ${last
             ? '<p class="soft full">Covers every district not listed in the zones above.</p>'
-            : `<label class="full">Districts <span class="soft">(separate with commas)</span><textarea name="districts" rows="2">${esc(z.districts.join(', '))}</textarea></label>`}
+            : `<label class="full"><span>Districts <span class="soft">(separate with commas)</span></span><textarea name="districts" rows="2">${esc(z.districts.join(', '))}</textarea></label>`}
         </div>
       </fieldset>`;
     };
@@ -414,7 +595,7 @@
         <h2>Change password</h2>
         <form class="form-grid" data-pass-form novalidate>
           <label class="full">Current password<input name="current" type="password" autocomplete="current-password" required></label>
-          <label class="full">New password <span class="soft">(at least 10 characters)</span><input name="next" type="password" autocomplete="new-password" minlength="10" required></label>
+          <label class="full"><span>New password <span class="soft">(at least 10 characters)</span></span><input name="next" type="password" autocomplete="new-password" minlength="10" required></label>
           <p class="error full" data-pass-error role="alert"></p>
           <div class="actions full"><button class="btn" type="submit">Change password</button></div>
         </form>

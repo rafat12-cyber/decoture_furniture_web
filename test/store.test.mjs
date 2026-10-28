@@ -229,7 +229,7 @@ test('admin adds a colourway and uploads a photo', async () => {
   const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64)]).toString('base64');
   const up = await call('/api/admin/variants/gx-9-black/image', { method: 'POST', cookie, body: { dataUrl: `data:image/jpeg;base64,${jpeg}` } });
   assert.equal(up.status, 200);
-  assert.match(up.data.variant.image, /^uploads\/products\/gx-9-black-\d+\.jpg$/);
+  assert.match(up.data.variant.image, /^uploads\/products\/gx-9-black-\d+-[a-z0-9]+\.jpg$/);
   const img = await fetch(`${base}/${up.data.variant.image}`);
   assert.equal(img.status, 200);
   assert.equal(img.headers.get('content-type'), 'image/jpeg');
@@ -237,6 +237,41 @@ test('admin adds a colourway and uploads a photo', async () => {
   assert.equal(fake.status, 400, 'files that are not really images are refused');
   const cat = (await call('/api/catalog')).data;
   assert.ok(cat.products.find((p) => p.slug === 'gx-9').variants[0].image.startsWith('uploads/'));
+});
+
+test('admin edits a chair: name, details, category and every angle photo', async () => {
+  const cookie = await login();
+  const before = await call('/api/admin/products/6801a', { cookie });
+  assert.equal(before.data.product.name, 'Monarch 6801A');
+  const put = await call('/api/admin/products/6801a', { method: 'PUT', cookie, body: { name: 'Imperial', features: 'Reclining back\nFootrest', description: 'A big leather chair.', collection: 'ergonomic', warrantyYears: 3 } });
+  assert.equal(put.status, 200);
+  assert.equal(put.data.product.name, 'Imperial 6801A');
+  let p = (await call('/api/catalog')).data.products.find((x) => x.slug === '6801a');
+  assert.equal(p.name, 'Imperial 6801A');
+  assert.deepEqual(p.features, ['Reclining back', 'Footrest']);
+  assert.equal(p.description, 'A big leather chair.');
+  assert.equal(p.collection, 'ergonomic');
+  assert.equal(p.warrantyYears, 3);
+  assert.equal((await call('/api/admin/products/6801a', { method: 'PUT', cookie, body: { collection: 'sofas' } })).status, 400);
+  await call('/api/admin/products/6801a', { method: 'PUT', cookie, body: {} });
+  p = (await call('/api/catalog')).data.products.find((x) => x.slug === '6801a');
+  assert.equal(p.name, 'Monarch 6801A', 'empty fields go back to the defaults');
+  assert.equal(p.collection, 'executive');
+
+  const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64)]).toString('base64');
+  const id = before.data.product.variants[0].id;
+  const start = [before.data.product.variants[0].image, ...before.data.product.variants[0].gallery];
+  const added = await call(`/api/admin/variants/${id}/photos`, { method: 'POST', cookie, body: { dataUrl: `data:image/jpeg;base64,${jpeg}` } });
+  assert.equal(added.status, 200);
+  const photos = [added.data.variant.image, ...added.data.variant.gallery];
+  assert.deepEqual(photos.slice(0, -1), start, 'a new photo is added after the others');
+  const reordered = [photos.at(-1), ...photos.slice(0, -1)];
+  const set = await call(`/api/admin/variants/${id}/photos`, { method: 'PUT', cookie, body: { photos: reordered.slice(0, 2) } });
+  assert.equal(set.data.variant.image, reordered[0], 'the first photo is the main one');
+  assert.deepEqual(set.data.variant.gallery, [reordered[1]]);
+  assert.equal((await call(`/api/admin/variants/${id}/photos`, { method: 'PUT', cookie, body: { photos: ['../../etc/passwd'] } })).status, 400);
+  const v = (await call('/api/catalog')).data.products.find((x) => x.slug === '6801a').variants.find((x) => x.id === id);
+  assert.deepEqual(v.gallery, reordered.slice(0, 2));
 });
 
 test('office quote requests are saved and listed for the admin', async () => {

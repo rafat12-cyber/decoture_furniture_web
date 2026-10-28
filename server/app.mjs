@@ -2,7 +2,7 @@
 // and quote API, and the admin panel with its API. Plain node:http, no packages.
 import { createReadStream, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join, normalize, resolve, sep } from 'node:path';
-import { catalogScript, COLLECTIONS } from '../lib/catalog.mjs';
+import { catalogScript, COLLECTIONS, slug } from '../lib/catalog.mjs';
 import { cleanDelivery, DEFAULT_DELIVERY, deliveryCharge, DISTRICTS } from '../lib/delivery.mjs';
 import { HttpError, ORDER_STATUSES, QUOTE_STATUSES } from './db.mjs';
 import { decorateHtml, robotsTxt, sitemapXml } from './seo.mjs';
@@ -458,9 +458,9 @@ export function createApp({ db, root, uploadsDir, mailer, gateway = NO_GATEWAY, 
     });
     send(res, 201, { variant: v });
   });
-  route('POST', /^\/api\/admin\/variants\/([a-z0-9-]{1,80})\/image$/, async (req, res, [id]) => {
-    requireAdmin(req);
-    if (!db.variant(id)) throw new HttpError(404, 'No such product.');
+  // Photos: a new upload becomes the main photo (main: true) or is added as another angle.
+  // Uploads are kept under DATA_DIR, so they survive updates of the app files.
+  const savePhoto = async (req, id) => {
     const b = await readJson(req, 9 * 1024 * 1024);
     const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(b.dataUrl || ''));
     if (!m) throw new HttpError(400, 'Upload a JPG, PNG or WebP photo.');
@@ -468,9 +468,75 @@ export function createApp({ db, root, uploadsDir, mailer, gateway = NO_GATEWAY, 
     if (buf.length > 6 * 1024 * 1024) throw new HttpError(413, 'Photos can be up to 6 MB.');
     const magic = { jpeg: [0xff, 0xd8, 0xff], png: [0x89, 0x50, 0x4e, 0x47], webp: [0x52, 0x49, 0x46, 0x46] }[m[1]];
     if (!magic.every((byte, i) => buf[i] === byte)) throw new HttpError(400, 'That file is not a real image.');
-    const name = `${id}-${Date.now()}.${m[1] === 'jpeg' ? 'jpg' : m[1]}`;
+    const name = `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${m[1] === 'jpeg' ? 'jpg' : m[1]}`;
     writeFileSync(join(uploadsRoot, 'products', name), buf);
-    send(res, 200, { variant: db.updateVariant(id, { image: `uploads/products/${name}` }) });
+    return { path: `uploads/products/${name}`, main: !!b.main };
+  };
+  route('POST', /^\/api\/admin\/variants\/([a-z0-9-]{1,80})\/image$/, async (req, res, [id]) => {
+    requireAdmin(req);
+    if (!db.variant(id)) throw new HttpError(404, 'No such product.');
+    const { path } = await savePhoto(req, id);
+    send(res, 200, { variant: db.addPhoto(id, path, { main: true }) });
+  });
+  route('POST', /^\/api\/admin\/variants\/([a-z0-9-]{1,80})\/photos$/, async (req, res, [id]) => {
+    requireAdmin(req);
+    if (!db.variant(id)) throw new HttpError(404, 'No such product.');
+    const { path, main } = await savePhoto(req, id);
+    send(res, 200, { variant: db.addPhoto(id, path, { main }) });
+  });
+  route('PUT', /^\/api\/admin\/variants\/([a-z0-9-]{1,80})\/photos$/, async (req, res, [id]) => {
+    requireAdmin(req);
+    const b = await readJson(req);
+    if (!Array.isArray(b.photos) || b.photos.length > 40) throw new HttpError(400, 'Send the list of photos.');
+    send(res, 200, { variant: db.setPhotos(id, b.photos) });
+  });
+
+  // ---------- Products (one chair, all its colours) ----------
+  const collectionNames = () => Object.fromEntries(Object.entries(COLLECTIONS).map(([k, v]) => [k, v.name]));
+  route('GET', /^\/api\/admin\/products$/, (req, res) => {
+    requireAdmin(req);
+    const bySlug = new Map();
+    const shown = new Map(db.catalog().products.map((p) => [p.slug, p]));
+    for (const v of db.variants()) {
+      const key = slug(v.model);
+      if (!bySlug.has(key)) {
+        const p = shown.get(key);
+        bySlug.set(key, { slug: key, model: v.model, name: p ? p.name : v.name, collection: p ? p.collection : v.collection, image: null, colours: 0, onSale: 0, stock: 0, from: null });
+      }
+      const p = bySlug.get(key);
+      p.colours += 1;
+      if (!p.image && v.image) p.image = v.image;
+      if (v.active) {
+        p.onSale += 1; p.stock += v.stock;
+        const price = v.salePrice ?? v.price;
+        if (price != null && (p.from == null || price < p.from)) p.from = price;
+      }
+    }
+    send(res, 200, { products: [...bySlug.values()], collections: collectionNames() });
+  });
+  route('GET', /^\/api\/admin\/products\/([a-z0-9-]{1,80})$/, (req, res, [key]) => {
+    requireAdmin(req);
+    const product = db.productForAdmin(key);
+    if (!product) throw new HttpError(404, 'No such product.');
+    send(res, 200, { product, collections: collectionNames() });
+  });
+  route('PUT', /^\/api\/admin\/products\/([a-z0-9-]{1,80})$/, async (req, res, [key]) => {
+    requireAdmin(req);
+    const current = db.productForAdmin(key);
+    if (!current) throw new HttpError(404, 'No such product.');
+    const b = await readJson(req);
+    const collection = String(b.collection || '');
+    if (collection && !COLLECTIONS[collection]) throw new HttpError(400, 'Choose a category.');
+    const features = (Array.isArray(b.features) ? b.features : String(b.features || '').split('\n'))
+      .map((f) => text(f, 80, { label: 'Feature' })).filter(Boolean).slice(0, 12);
+    db.setProductDetails(current.model, {
+      name: text(b.name, 40, { label: 'Name' }),
+      features,
+      description: text(b.description, 1500, { label: 'Description' }),
+      collection: collection === current.defaults.collection ? '' : collection,
+      warrantyYears: b.warrantyYears === '' || b.warrantyYears == null ? null : intOrNull(b.warrantyYears, { max: 10, label: 'Warranty' }),
+    });
+    send(res, 200, { product: db.productForAdmin(key) });
   });
 
   route('GET', /^\/api\/admin\/settings$/, (req, res) => {

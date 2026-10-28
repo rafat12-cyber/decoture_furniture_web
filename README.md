@@ -31,7 +31,7 @@ Run the tests with `npm test`.
 |---|---|
 | Overview | New orders to confirm, orders and sales this month, chairs with 10 or fewer left |
 | Orders | Filter by status, open an order, call or WhatsApp the customer, change the status (New, Confirmed, Shipped, Delivered, Cancelled), leave a message the customer sees on their tracking page, keep an internal note, download all orders as CSV |
-| Products & stock | Edit price, sale price and stock for each colourway, hide a chair from the store, replace its photo, add a new model or colour |
+| Products | A list of every chair, and an edit page for each one: its name (shown with the model number), category, warranty, features and description; each colour's price, sale price, stock, swatch and on-sale switch; and its photos (add several angles at once, choose the main one, reorder, remove). "Quick stock edit" changes many prices and stock counts in one table. Edits to names, details and photos survive a new price list; uploads are kept in `DATA_DIR/uploads` |
 | Office quotes | Requests from the "For offices" page and the home page, with a status for each |
 | Settings | Delivery charges by zone, whether online payment is on, change the admin password (this logs out other devices) |
 

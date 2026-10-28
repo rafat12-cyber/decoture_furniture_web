@@ -30,6 +30,15 @@ const SCHEMA = `
     active INTEGER NOT NULL DEFAULT 1,
     updated_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS product_details (
+    model TEXT PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT '',
+    features TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    collection TEXT NOT NULL DEFAULT '',
+    warranty_years INTEGER,
+    updated_at TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS orders (
     id TEXT PRIMARY KEY,
     created_at TEXT NOT NULL,
@@ -104,7 +113,8 @@ const ORDER_COLUMNS = {
   paid_amount: 'INTEGER',
   payment_ref: "TEXT NOT NULL DEFAULT ''",
 };
-const VARIANT_COLUMNS = { code: "TEXT NOT NULL DEFAULT ''", gallery: "TEXT NOT NULL DEFAULT ''" };
+// photos_edited: set once the admin panel changes a colourway's photos, so a new price list keeps them.
+const VARIANT_COLUMNS = { code: "TEXT NOT NULL DEFAULT ''", gallery: "TEXT NOT NULL DEFAULT ''", photos_edited: 'INTEGER NOT NULL DEFAULT 0' };
 export const PAYMENT_STATUSES = ['cod', 'pending', 'paid', 'failed'];
 
 export function openDb(file, { seedCsv } = {}) {
@@ -136,7 +146,9 @@ function syncCatalog(db, text) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
     ON CONFLICT (id) DO UPDATE SET sl = excluded.sl, code = excluded.code, model = excluded.model, colour = excluded.colour,
       collection = excluded.collection, swatch = excluded.swatch, stock = excluded.stock, warranty_years = excluded.warranty_years,
-      features = excluded.features, image = excluded.image, gallery = excluded.gallery, price_bdt = excluded.price_bdt, sale_price_bdt = excluded.sale_price_bdt,
+      features = excluded.features,
+      image = CASE WHEN variants.photos_edited = 1 THEN variants.image ELSE excluded.image END,
+      gallery = CASE WHEN variants.photos_edited = 1 THEN variants.gallery ELSE excluded.gallery END, price_bdt = excluded.price_bdt, sale_price_bdt = excluded.sale_price_bdt,
       active = 1, updated_at = excluded.updated_at`);
   const t = now();
   const n = (s) => (s === '' ? null : Number(s));
@@ -163,14 +175,25 @@ export class HttpError extends Error {
   constructor(status, message, extra = {}) { super(message); this.status = status; Object.assign(this, extra); }
 }
 
-const variantRow = (v) => ({
-  id: v.id, sl: v.sl, code: v.code, model: v.model, colour: v.colour, collection: v.collection, swatch: v.swatch, stock: v.stock,
-  warrantyYears: v.warranty_years, features: v.features, image: v.image, price: v.price_bdt, salePrice: v.sale_price_bdt,
+// Photos are stored as a file name in assets/img/products/ (from the price list) or a site path.
+const photoPath = (f) => (f.includes('/') ? f : `assets/img/products/${f}`);
+const splitGallery = (g) => String(g || '').split('|').map((f) => f.trim()).filter(Boolean);
+const variantRow = (v, title) => ({
+  id: v.id, sl: v.sl, code: v.code, model: v.model, name: displayName(v.model, title || undefined), colour: v.colour, collection: v.collection, swatch: v.swatch, stock: v.stock,
+  warrantyYears: v.warranty_years, features: v.features, image: v.image ? photoPath(v.image) : null,
+  gallery: splitGallery(v.gallery).map(photoPath), price: v.price_bdt, salePrice: v.sale_price_bdt,
   active: !!v.active, updatedAt: v.updated_at,
+});
+const detailsRow = (d) => ({
+  name: d.name, features: d.features.split('\n').map((f) => f.trim()).filter(Boolean), description: d.description,
+  collection: d.collection, warrantyYears: d.warranty_years,
 });
 const unitPrice = (v) => (v.sale_price_bdt != null ? v.sale_price_bdt : v.price_bdt);
 
 function wrap(db) {
+  const titleOf = db.prepare('SELECT name FROM product_details WHERE model = ?');
+  const nameOf = (model) => displayName(model, titleOf.get(model)?.name || undefined);
+  const row = (v) => variantRow(v, titleOf.get(v.model)?.name);
   const q = {
     variant: db.prepare('SELECT * FROM variants WHERE id = ?'),
     variants: db.prepare('SELECT * FROM variants ORDER BY sl'),
@@ -210,10 +233,65 @@ function wrap(db) {
     // ---------- Catalog ----------
     catalog() {
       const rows = q.activeVariants.all().map((v) => ({ ...v, image: v.image || '' }));
-      return buildCatalog(rows);
+      return buildCatalog(rows, this.productDetails());
     },
-    variants: () => q.variants.all().map(variantRow),
-    variant: (id) => { const v = q.variant.get(id); return v ? variantRow(v) : null; },
+    // Name, features, description, category and warranty typed in the admin panel, by model. They
+    // override the defaults from lib/catalog.mjs and the price list; an empty field keeps the default.
+    // A new price list does not touch them.
+    productDetails() {
+      return Object.fromEntries(db.prepare('SELECT * FROM product_details').all().map((d) => [d.model, detailsRow(d)]));
+    },
+    setProductDetails(model, { name, features, description, collection, warrantyYears }) {
+      if (!db.prepare('SELECT 1 FROM variants WHERE model = ? LIMIT 1').get(model)) throw new HttpError(404, 'No such product.');
+      db.prepare(`INSERT INTO product_details (model, name, features, description, collection, warranty_years, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (model) DO UPDATE SET name = excluded.name, features = excluded.features, description = excluded.description,
+          collection = excluded.collection, warranty_years = excluded.warranty_years, updated_at = excluded.updated_at`)
+        .run(model, name, features.join('\n'), description, collection, warrantyYears, now());
+    },
+    // Everything the admin edit page needs for one chair: what the store shows now, the defaults
+    // an empty field falls back to, and every colourway, hidden ones included.
+    productForAdmin(productSlug) {
+      const all = q.variants.all().filter((v) => slug(v.model) === productSlug);
+      if (!all.length) return null;
+      const model = all[0].model;
+      const plain = buildCatalog(all.map((v) => ({ ...v, image: v.image || '' }))).products[0];
+      const d = db.prepare('SELECT * FROM product_details WHERE model = ?').get(model);
+      const shown = buildCatalog(all.map((v) => ({ ...v, image: v.image || '' })), d ? { [model]: detailsRow(d) } : {}).products[0];
+      return {
+        slug: productSlug, model,
+        name: shown.name, title: shown.title, features: shown.features, description: shown.description,
+        collection: shown.collection, warrantyYears: shown.warrantyYears,
+        defaults: { title: plain.title, features: plain.features, description: plain.description, collection: plain.collection, warrantyYears: plain.warrantyYears },
+        details: d ? detailsRow(d) : null,
+        variants: all.map(row),
+      };
+    },
+    // photos: the colourway's photos in order, the first being the main one. Only photos it
+    // already has can be listed, so this removes or reorders; uploads add with addPhoto.
+    setPhotos(id, photos) {
+      const v = q.variant.get(id);
+      if (!v) throw new HttpError(404, 'No such product.');
+      const have = new Set([v.image, ...splitGallery(v.gallery)].filter(Boolean).map(photoPath));
+      const list = [...new Set(photos.map(String))];
+      if (!list.every((p) => have.has(p))) throw new HttpError(400, 'That photo does not belong to this chair.');
+      db.prepare('UPDATE variants SET image = ?, gallery = ?, photos_edited = 1, updated_at = ? WHERE id = ?')
+        .run(list[0] || null, list.slice(1).join('|'), now(), id);
+      return row(q.variant.get(id));
+    },
+    addPhoto(id, path, { main = false } = {}) {
+      const v = q.variant.get(id);
+      if (!v) throw new HttpError(404, 'No such product.');
+      const gallery = splitGallery(v.gallery);
+      if (main || !v.image) {
+        if (v.image && !main) gallery.unshift(v.image);
+        db.prepare('UPDATE variants SET image = ?, gallery = ?, photos_edited = 1, updated_at = ? WHERE id = ?').run(path, gallery.join('|'), now(), id);
+      } else {
+        db.prepare('UPDATE variants SET gallery = ?, photos_edited = 1, updated_at = ? WHERE id = ?').run([...gallery, path].join('|'), now(), id);
+      }
+      return row(q.variant.get(id));
+    },
+    variants: () => q.variants.all().map(row),
+    variant: (id) => { const v = q.variant.get(id); return v ? row(v) : null; },
     updateVariant(id, patch) {
       const v = q.variant.get(id);
       if (!v) throw new HttpError(404, 'No such product.');
@@ -227,7 +305,7 @@ function wrap(db) {
       };
       db.prepare('UPDATE variants SET price_bdt = ?, sale_price_bdt = ?, stock = ?, active = ?, image = ?, swatch = ?, updated_at = ? WHERE id = ?')
         .run(next.price_bdt, next.sale_price_bdt, next.stock, next.active, next.image, next.swatch, now(), id);
-      return variantRow(q.variant.get(id));
+      return row(q.variant.get(id));
     },
     addVariant(v) {
       const id = slug(`${v.model}-${v.colour}`);
@@ -236,7 +314,7 @@ function wrap(db) {
       db.prepare(`INSERT INTO variants (id, sl, model, colour, collection, swatch, stock, warranty_years, features, image, price_bdt, sale_price_bdt, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', NULL, ?, ?, ?)`)
         .run(id, sl, v.model, v.colour, v.collection, v.swatch || swatchFor(v.colour), v.stock, v.warrantyYears, v.price, v.salePrice, now());
-      return variantRow(q.variant.get(id));
+      return row(q.variant.get(id));
     },
 
     // ---------- Orders ----------
@@ -249,7 +327,7 @@ function wrap(db) {
           const v = q.variant.get(id);
           if (!v || !v.active) throw new HttpError(409, 'A chair in your cart is no longer available.', { variant: id, available: 0 });
           if (v.stock < qty) {
-            throw new HttpError(409, v.stock > 0 ? `Only ${v.stock} of ${displayName(v.model)} ${v.colour} left.` : `${displayName(v.model)} ${v.colour} is out of stock.`, { variant: id, available: Math.max(0, v.stock) });
+            throw new HttpError(409, v.stock > 0 ? `Only ${v.stock} of ${nameOf(v.model)} ${v.colour} left.` : `${nameOf(v.model)} ${v.colour} is out of stock.`, { variant: id, available: Math.max(0, v.stock) });
           }
           lines.push({ v, qty });
         }
@@ -272,7 +350,7 @@ function wrap(db) {
         const addItem = db.prepare('INSERT INTO order_items (order_id, variant_id, sku, qty, price, image) VALUES (?, ?, ?, ?, ?, ?)');
         const take = db.prepare('UPDATE variants SET stock = stock - ?, updated_at = ? WHERE id = ?');
         for (const { v, qty } of lines) {
-          addItem.run(id, v.id, `${displayName(v.model)} ${v.colour}`, qty, unitPrice(v), v.image ? (v.image.includes('/') ? v.image : `assets/img/products/${v.image}`) : null);
+          addItem.run(id, v.id, `${nameOf(v.model)} ${v.colour}`, qty, unitPrice(v), v.image ? (v.image.includes('/') ? v.image : `assets/img/products/${v.image}`) : null);
           take.run(qty, t, v.id);
         }
         db.prepare('INSERT INTO order_events (order_id, at, status, note) VALUES (?, ?, ?, ?)').run(id, t, 'new', 'Order placed on the website');
@@ -313,7 +391,7 @@ function wrap(db) {
         monthOrders: one("SELECT COUNT(*) AS n FROM orders WHERE substr(created_at, 1, 7) = ? AND status != 'cancelled'", month).n,
         monthSales: one("SELECT COALESCE(SUM(total), 0) AS n FROM orders WHERE substr(created_at, 1, 7) = ? AND status != 'cancelled'", month).n,
         newQuotes: one("SELECT COUNT(*) AS n FROM quotes WHERE status = 'new'").n,
-        lowStock: db.prepare('SELECT * FROM variants WHERE active = 1 AND stock <= 10 ORDER BY stock, sl').all().map(variantRow),
+        lowStock: db.prepare('SELECT * FROM variants WHERE active = 1 AND stock <= 10 ORDER BY stock, sl').all().map(row),
       };
     },
 
