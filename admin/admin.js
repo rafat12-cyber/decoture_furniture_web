@@ -321,7 +321,7 @@
         <label>Colour<input name="colour" required placeholder="e.g. Black"></label>
         <label>Collection<select name="collection">${Object.entries(collections).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select></label>
         <label>Swatch colour<input name="swatch" type="color" value="#1d1d1f" style="padding:2px"></label>
-        <label>Price ৳<input name="price" inputmode="numeric" value="8900"></label>
+        <label>Price ৳<input name="price" inputmode="numeric" placeholder="e.g. 9500"></label>
         <label>Sale price ৳ <span class="soft">(optional)</span><input name="salePrice" inputmode="numeric"></label>
         <label>Stock<input name="stock" inputmode="numeric" value="0"></label>
         <label>Warranty (years)<input name="warrantyYears" inputmode="numeric" value="2"></label>

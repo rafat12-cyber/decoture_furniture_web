@@ -123,6 +123,23 @@
     ['contact', 'contact.html', 'Showroom & contact'],
   ];
 
+  // Shop with its categories as a dropdown (a plain list inside the mobile menu).
+  function shopItem(href, label) {
+    const current = new URLSearchParams(location.search).get('collection');
+    const counts = {};
+    products.forEach((p) => { counts[p.collection] = (counts[p.collection] || 0) + 1; });
+    const links = Object.entries(catalog.collections).map(([k, c]) => `
+          <a href="shop.html?collection=${k}"${page === 'shop' && current === k ? ' aria-current="page"' : ''}>${esc(c.name)}<span class="n tnum">${counts[k] || 0}</span></a>`).join('');
+    return `
+      <div class="nav-sub">
+        <a href="${href}"${page === 'shop' && !current ? ' aria-current="page"' : ''}>${label}</a>
+        <button class="nav-sub-toggle" type="button" aria-expanded="false" aria-controls="nav-cats" aria-label="Chair categories"><svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
+        <div class="nav-cats" id="nav-cats">
+          <a href="shop.html">All chairs<span class="n tnum">${products.length}</span></a>${links}
+        </div>
+      </div>`;
+  }
+
   function renderHeader() {
     const el = document.querySelector('[data-site-header]');
     if (!el) return;
@@ -131,18 +148,25 @@
       <a class="brand" href="index.html" aria-label="Decoture home">
         <img class="brand-mark" src="assets/img/logo/mark.svg" alt="" width="33" height="22">
         <img src="assets/img/logo/wordmark.svg" alt="decoture" width="133" height="26">
+        <span class="brand-parent">A brand of<br>Sigma Synchrony</span>
       </a>
       <nav class="nav" id="site-nav" aria-label="Main">
-        ${NAV.map(([key, href, label]) => `<a href="${href}"${key === page ? ' aria-current="page"' : ''}>${label}</a>`).join('')}
+        ${NAV.map(([key, href, label]) => (key === 'shop' ? shopItem(href, label) : `<a href="${href}"${key === page ? ' aria-current="page"' : ''}>${label}</a>`)).join('')}
       </nav>
       <div class="header-actions">
         <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
         <button class="cart-button" type="button" data-open-cart aria-label="Open cart">
-          <span class="cart-label">Cart</span><span class="cart-count tnum" data-cart-count>0</span>
+          <svg class="cart-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14l-1.2 12.1a1 1 0 0 1-1 .9H7.2a1 1 0 0 1-1-.9L5 7Z"/><path d="M9 10V6a3 3 0 0 1 6 0v4"/></svg><span class="cart-count tnum" data-cart-count>0</span>
         </button>
       </div>`;
     const menu = el.querySelector('.menu-button');
     const nav = el.querySelector('.nav');
+    const sub = el.querySelector('.nav-sub');
+    const toggle = el.querySelector('.nav-sub-toggle');
+    const setSub = (open) => { sub.classList.toggle('is-open', open); toggle.setAttribute('aria-expanded', String(open)); };
+    toggle.addEventListener('click', () => setSub(!sub.classList.contains('is-open')));
+    sub.addEventListener('keydown', (e) => { if (e.key === 'Escape') { setSub(false); toggle.focus(); } });
+    document.addEventListener('click', (e) => { if (!sub.contains(e.target)) setSub(false); });
     menu.addEventListener('click', () => {
       const open = nav.classList.toggle('is-open');
       menu.setAttribute('aria-expanded', String(open));
@@ -157,7 +181,7 @@
     el.innerHTML = `
       <div class="tile tile-statement">
         <p>Imported chairs, chosen for the way Dhaka works and lives.</p>
-        <p>© ${new Date().getFullYear()} Decoture. Prices in BDT. Stock list updated ${formatDate(catalog.stockListDate)}.</p>
+        <p>© ${new Date().getFullYear()} DECOTURE, a brand of Sigma Synchrony. Prices in BDT. Stock list updated ${formatDate(catalog.stockListDate)}.</p>
       </div>
       <nav class="tile tile-nav" aria-label="Footer">
         <ul>
@@ -328,6 +352,8 @@
   function updateCount() {
     document.querySelectorAll('[data-cart-count]').forEach((el) => {
       const n = cart.count();
+      el.toggleAttribute('data-zero', n === 0);
+      el.closest('[data-open-cart]')?.setAttribute('aria-label', n ? `Open cart, ${n} ${n === 1 ? 'chair' : 'chairs'}` : 'Open cart');
       if (el.textContent !== String(n)) {
         el.textContent = n;
         el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
@@ -455,7 +481,7 @@
   renderDrawer();
   cart.subscribe(() => { updateCount(); updateDrawer(); });
   updateDrawer();
-  document.querySelectorAll('[data-cart-count]').forEach((el) => { el.textContent = cart.count(); });
+  document.querySelectorAll('[data-cart-count]').forEach((el) => { el.textContent = cart.count(); el.toggleAttribute('data-zero', cart.count() === 0); });
 
   window.Decoture = {
     CONFIG, catalog, products, bySlug, byVariant, cart, orders, FAMILIES, familyOf, live, api, STATUS_LABELS, formatDate,

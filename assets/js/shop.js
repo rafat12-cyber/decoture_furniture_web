@@ -1,4 +1,4 @@
-// Shop: filter by collection, colour and stock; sort; state kept in the URL.
+// Shop: filter by collection, colour and stock; sort; 24 chairs a page; state kept in the URL.
 (function () {
   'use strict';
   const D = window.Decoture;
@@ -9,7 +9,9 @@
     colour: D.FAMILIES.some((f) => f.key === params.get('colour')) ? params.get('colour') : '',
     inStock: params.get('stock') === '1',
     sort: params.get('sort') || 'featured',
+    page: Math.max(1, parseInt(params.get('page'), 10) || 1),
   };
+  const PER_PAGE = 24;
 
   const chips = document.querySelector('[data-collection-chips]');
   const colours = document.querySelector('[data-colour-filter]');
@@ -21,6 +23,7 @@
   const title = document.querySelector('[data-shop-title]');
   const blurb = document.querySelector('[data-shop-blurb]');
   const defaultBlurb = blurb.textContent;
+  const pager = document.querySelector('[data-pager]');
 
   const countIn = (k) => products.filter((p) => p.collection === k).length;
   chips.innerHTML = `<button type="button" class="chip" data-c="">All<span class="n">${products.length}</span></button>` +
@@ -29,16 +32,23 @@
   inStock.checked = state.inStock;
   sort.value = state.sort;
 
-  chips.addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) { state.collection = b.dataset.c; render(); } });
-  colours.addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (b) { state.colour = state.colour === b.dataset.f ? '' : b.dataset.f; render(); } });
-  inStock.addEventListener('change', () => { state.inStock = inStock.checked; render(); });
-  sort.addEventListener('change', () => { state.sort = sort.value; render(); });
+  chips.addEventListener('click', (e) => { const b = e.target.closest('[data-c]'); if (b) { state.collection = b.dataset.c; state.page = 1; render(); } });
+  colours.addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (b) { state.colour = state.colour === b.dataset.f ? '' : b.dataset.f; state.page = 1; render(); } });
+  inStock.addEventListener('change', () => { state.inStock = inStock.checked; state.page = 1; render(); });
+  sort.addEventListener('change', () => { state.sort = sort.value; state.page = 1; render(); });
+  pager.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-page]');
+    if (!b || b.disabled) return;
+    state.page = Number(b.dataset.page);
+    render();
+    document.querySelector('.shop-tools').scrollIntoView({ block: 'start', behavior: window.Motion?.reduce ? 'auto' : 'smooth' });
+  });
   document.querySelector('[data-reset]').addEventListener('click', () => {
-    Object.assign(state, { collection: '', colour: '', inStock: false, sort: 'featured' });
+    Object.assign(state, { collection: '', colour: '', inStock: false, sort: 'featured', page: 1 });
     inStock.checked = false; sort.value = 'featured'; render();
   });
 
-  const featuredOrder = ['executive', 'ergonomic', 'task', 'training'];
+  const featuredOrder = Object.keys(catalog.collections);
   function render() {
     let list = products.filter((p) => {
       if (state.collection && p.collection !== state.collection) return false;
@@ -51,7 +61,7 @@
       stock: (a, b) => D.productStock(b) - D.productStock(a),
       'price-asc': (a, b) => price(a) - price(b),
       'price-desc': (a, b) => (D.productFromPrice(b) ?? -1) - (D.productFromPrice(a) ?? -1),
-      name: (a, b) => a.model.localeCompare(b.model, 'en', { numeric: true }),
+      name: (a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }),
     };
     list = [...list].sort(sorters[state.sort] || sorters.featured);
 
@@ -60,23 +70,34 @@
     const coll = catalog.collections[state.collection];
     title.textContent = coll ? `${coll.name} chairs` : 'All chairs';
     blurb.textContent = coll ? coll.blurb : defaultBlurb;
-    document.title = `${title.textContent} · Decoture`;
+    document.title = `${title.textContent} · DECOTURE – A brand of Sigma Synchrony`;
 
+    const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
+    state.page = Math.min(state.page, pages);
+    const from = (state.page - 1) * PER_PAGE;
+    const shown = list.slice(from, from + PER_PAGE);
     // Show the matching colourway first on each card when a colour is chosen.
-    grid.innerHTML = list.map((p, i) => {
+    grid.innerHTML = shown.map((p, i) => {
       if (!state.colour) return D.cardHTML(p, i);
       const v = p.variants.find((x) => D.familyOf(x) === state.colour && x.image);
       return D.cardHTML(v ? { ...p, variants: [v, ...p.variants.filter((x) => x !== v)] } : p, i);
     }).join('');
     empty.hidden = list.length > 0;
     const fam = D.FAMILIES.find((f) => f.key === state.colour);
-    count.textContent = `${list.length} ${list.length === 1 ? 'model' : 'models'}${fam ? ` in ${fam.label.toLowerCase()}` : ''}${state.inStock ? ', in stock' : ''}`;
+    count.textContent = `${list.length} ${list.length === 1 ? 'model' : 'models'}${fam ? ` in ${fam.label.toLowerCase()}` : ''}${state.inStock ? ', in stock' : ''}`
+      + (pages > 1 ? ` · showing ${from + 1}–${from + shown.length}` : '');
+    pager.hidden = pages < 2;
+    pager.innerHTML = pages < 2 ? '' : `
+      <button type="button" class="pager-step" data-page="${state.page - 1}"${state.page === 1 ? ' disabled' : ''}>Previous</button>
+      <span class="pager-pages">${Array.from({ length: pages }, (_, i) => `<button type="button" data-page="${i + 1}"${i + 1 === state.page ? ' aria-current="page"' : ''} aria-label="Page ${i + 1}">${i + 1}</button>`).join('')}</span>
+      <button type="button" class="pager-step" data-page="${state.page + 1}"${state.page === pages ? ' disabled' : ''}>Next</button>`;
 
     const q = new URLSearchParams();
     if (state.collection) q.set('collection', state.collection);
     if (state.colour) q.set('colour', state.colour);
     if (state.inStock) q.set('stock', '1');
     if (state.sort !== 'featured') q.set('sort', state.sort);
+    if (state.page > 1) q.set('page', state.page);
     try { history.replaceState(null, '', q.toString() ? `?${q}` : location.pathname); } catch { /* sandboxed */ }
     D.reveal(grid);
   }

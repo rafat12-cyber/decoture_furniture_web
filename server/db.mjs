@@ -1,9 +1,12 @@
 // SQLite storage (node:sqlite, built into Node 22.5+): products, orders, quotes and admin sessions.
-// On first run the variants table is seeded from data/stock.csv; after that the database is the
-// source of truth and the admin panel edits it.
+// The variants table is filled from data/stock.csv on first run, and again whenever that file
+// changes (a new price list): rows in the file are added or overwritten, and chairs no longer in it
+// are hidden, never deleted, so past orders keep their details. Between price lists the database is
+// the source of truth and the admin panel edits it.
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { buildCatalog, parseCsv, slug, swatchFor } from '../lib/catalog.mjs';
+import { createHash } from 'node:crypto';
+import { buildCatalog, displayName, parseCsv, slug, swatchFor } from '../lib/catalog.mjs';
 
 export const ORDER_STATUSES = ['new', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 export const QUOTE_STATUSES = ['new', 'contacted', 'closed'];
@@ -101,6 +104,7 @@ const ORDER_COLUMNS = {
   paid_amount: 'INTEGER',
   payment_ref: "TEXT NOT NULL DEFAULT ''",
 };
+const VARIANT_COLUMNS = { code: "TEXT NOT NULL DEFAULT ''", gallery: "TEXT NOT NULL DEFAULT ''" };
 export const PAYMENT_STATUSES = ['cod', 'pending', 'paid', 'failed'];
 
 export function openDb(file, { seedCsv } = {}) {
@@ -114,21 +118,38 @@ export function openDb(file, { seedCsv } = {}) {
     }
   }
   db.exec('CREATE INDEX IF NOT EXISTS orders_tran ON orders (tran_id)');
-  const count = db.prepare('SELECT COUNT(*) AS n FROM variants').get().n;
-  if (count === 0 && seedCsv) seed(db, parseCsv(readFileSync(seedCsv, 'utf8')));
+  const vhave = new Set(db.prepare('PRAGMA table_info(variants)').all().map((c) => c.name));
+  for (const [col, type] of Object.entries(VARIANT_COLUMNS)) {
+    if (!vhave.has(col)) db.exec(`ALTER TABLE variants ADD COLUMN ${col} ${type}`);
+  }
+  if (seedCsv) syncCatalog(db, readFileSync(seedCsv, 'utf8'));
   return wrap(db);
 }
 
-function seed(db, rows) {
-  const insert = db.prepare(`INSERT INTO variants (id, sl, model, colour, collection, swatch, stock, warranty_years, features, image, price_bdt, sale_price_bdt, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+// Loads the price list into the variants table when it differs from the one loaded last time.
+function syncCatalog(db, text) {
+  const hash = createHash('sha256').update(text).digest('hex');
+  const last = db.prepare("SELECT value FROM settings WHERE key = 'catalog_csv'").get();
+  if (last && JSON.parse(last.value) === hash) return;
+  const rows = parseCsv(text);
+  const upsert = db.prepare(`INSERT INTO variants (id, sl, code, model, colour, collection, swatch, stock, warranty_years, features, image, gallery, price_bdt, sale_price_bdt, active, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    ON CONFLICT (id) DO UPDATE SET sl = excluded.sl, code = excluded.code, model = excluded.model, colour = excluded.colour,
+      collection = excluded.collection, swatch = excluded.swatch, stock = excluded.stock, warranty_years = excluded.warranty_years,
+      features = excluded.features, image = excluded.image, gallery = excluded.gallery, price_bdt = excluded.price_bdt, sale_price_bdt = excluded.sale_price_bdt,
+      active = 1, updated_at = excluded.updated_at`);
   const t = now();
   const n = (s) => (s === '' ? null : Number(s));
   tx(db, () => {
+    const ids = [];
     for (const r of rows) {
-      insert.run(slug(`${r.model}-${r.colour}`), Number(r.sl), r.model, r.colour, r.collection, swatchFor(r.colour),
-        n(r.stock) ?? 0, n(r.warranty_years), r.features || '', r.image || null, n(r.price_bdt), n(r.sale_price_bdt), t);
+      const id = slug(`${r.model}-${r.colour}`);
+      ids.push(id);
+      upsert.run(id, Number(r.sl), r.code || '', r.model, r.colour, r.collection, swatchFor(r.colour),
+        n(r.stock) ?? 0, n(r.warranty_years), r.features || '', r.image || null, r.gallery || '', n(r.price_bdt), n(r.sale_price_bdt), t);
     }
+    db.prepare(`UPDATE variants SET active = 0, updated_at = ? WHERE active = 1 AND id NOT IN (SELECT value FROM json_each(?))`).run(t, JSON.stringify(ids));
+    db.prepare("INSERT INTO settings (key, value) VALUES ('catalog_csv', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(JSON.stringify(hash));
   });
 }
 
@@ -143,7 +164,7 @@ export class HttpError extends Error {
 }
 
 const variantRow = (v) => ({
-  id: v.id, sl: v.sl, model: v.model, colour: v.colour, collection: v.collection, swatch: v.swatch, stock: v.stock,
+  id: v.id, sl: v.sl, code: v.code, model: v.model, colour: v.colour, collection: v.collection, swatch: v.swatch, stock: v.stock,
   warrantyYears: v.warranty_years, features: v.features, image: v.image, price: v.price_bdt, salePrice: v.sale_price_bdt,
   active: !!v.active, updatedAt: v.updated_at,
 });
@@ -228,7 +249,7 @@ function wrap(db) {
           const v = q.variant.get(id);
           if (!v || !v.active) throw new HttpError(409, 'A chair in your cart is no longer available.', { variant: id, available: 0 });
           if (v.stock < qty) {
-            throw new HttpError(409, v.stock > 0 ? `Only ${v.stock} of ${v.model} ${v.colour} left.` : `${v.model} ${v.colour} is out of stock.`, { variant: id, available: Math.max(0, v.stock) });
+            throw new HttpError(409, v.stock > 0 ? `Only ${v.stock} of ${displayName(v.model)} ${v.colour} left.` : `${displayName(v.model)} ${v.colour} is out of stock.`, { variant: id, available: Math.max(0, v.stock) });
           }
           lines.push({ v, qty });
         }
@@ -251,7 +272,7 @@ function wrap(db) {
         const addItem = db.prepare('INSERT INTO order_items (order_id, variant_id, sku, qty, price, image) VALUES (?, ?, ?, ?, ?, ?)');
         const take = db.prepare('UPDATE variants SET stock = stock - ?, updated_at = ? WHERE id = ?');
         for (const { v, qty } of lines) {
-          addItem.run(id, v.id, `${v.model} ${v.colour}`, qty, unitPrice(v), v.image ? (v.image.includes('/') ? v.image : `assets/img/products/${v.image}`) : null);
+          addItem.run(id, v.id, `${displayName(v.model)} ${v.colour}`, qty, unitPrice(v), v.image ? (v.image.includes('/') ? v.image : `assets/img/products/${v.image}`) : null);
           take.run(qty, t, v.id);
         }
         db.prepare('INSERT INTO order_events (order_id, at, status, note) VALUES (?, ?, ?, ?)').run(id, t, 'new', 'Order placed on the website');

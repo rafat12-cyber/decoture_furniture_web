@@ -9,7 +9,7 @@
   const coll = catalog.collections[p.collection];
   const root = document.querySelector('[data-product]');
 
-  document.title = `${p.name} ${coll.name} chair · Decoture`;
+  document.title = `${p.name} ${coll.name} chair · DECOTURE – A brand of Sigma Synchrony`;
   document.querySelector('[data-crumbs]').insertAdjacentHTML('beforeend',
     `<span aria-hidden="true">/</span><a href="shop.html?collection=${p.collection}">${esc(coll.name)}</a><span aria-hidden="true">/</span><span>${esc(p.name)}</span>`);
 
@@ -21,8 +21,7 @@
     <article class="product">
       <div class="product-media">
         <div class="stage"><img data-stage src="" alt="" width="400" height="500"></div>
-        ${p.variants.length > 1 ? `<div class="thumbs" role="group" aria-label="Colour photos">${p.variants.map((x) => `
-          <button type="button" data-thumb="${x.id}" aria-label="${esc(x.colour)}" aria-pressed="false"><img src="${x.image || D.PLACEHOLDER}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
+        <div class="views" role="group" aria-label="More angles" data-views></div>
       </div>
       <div class="product-info">
         <div>
@@ -51,9 +50,10 @@
         <p>${esc(p.description)}</p>
         <dl class="spec">
           <dt>Model</dt><dd>${esc(p.model)}</dd>
+          <dt>Product code</dt><dd data-code></dd>
           <dt>Collection</dt><dd>${esc(coll.name)}</dd>
           <dt>Colours</dt><dd>${p.variants.map((x) => esc(x.colour)).join(', ')}</dd>
-          <dt>Fittings</dt><dd>${p.warrantyYears === 1 ? 'Chrome base' : 'Fully foreign fittings'}</dd>
+          ${p.warrantyYears === 1 ? '' : '<dt>Fittings</dt><dd>Fully foreign fittings</dd>'}
           <dt>Warranty</dt><dd>${warranty}</dd>
         </dl>
         <div class="warranty-figure">
@@ -68,15 +68,24 @@
   const qty = root.querySelector('[data-qty]');
   const add = root.querySelector('[data-add]');
 
-  function select(next, swap) {
-    v = next;
-    const img = v.image || D.PLACEHOLDER;
+  const views = root.querySelector('[data-views]');
+  function show(img, swap) {
     if (swap && stage.getAttribute('src') !== img) {
       stage.classList.add('is-swapping');
       setTimeout(() => { stage.src = img; stage.classList.remove('is-swapping'); }, 150);
     } else stage.src = img;
+    views.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === img)));
+  }
+  function select(next, swap) {
+    v = next;
+    const shots = v.gallery || [];
+    views.hidden = shots.length < 2;
+    views.innerHTML = shots.length < 2 ? '' : shots.map((src, i) => `
+      <button type="button" data-view="${esc(src)}" aria-label="Photo ${i + 1} of ${shots.length}" aria-pressed="false"><img src="${esc(src)}" alt="" loading="lazy"></button>`).join('');
+    show(v.image || D.PLACEHOLDER, swap);
     stage.alt = `${v.sku} chair${v.image ? '' : ' (photo coming soon)'}`;
     root.querySelector('[data-colour-name]').textContent = v.colour;
+    root.querySelector('[data-code]').textContent = v.code || '—';
     root.querySelector('[data-price]').innerHTML = v.salePrice != null && v.price != null
       ? `${D.money(v.salePrice)}<s>${D.money(v.price)}</s>` : D.priceLabel(v);
     const s = D.stockState(v);
@@ -88,12 +97,13 @@
     add.disabled = v.stock <= 0;
     add.textContent = v.stock <= 0 ? 'Out of stock' : 'Add to cart';
     root.querySelectorAll('[data-variant]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.variant === v.id)));
-    root.querySelectorAll('[data-thumb]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.thumb === v.id)));
     try { history.replaceState(null, '', D.productUrl(p, v)); } catch { /* sandboxed */ }
   }
   root.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-variant], [data-thumb]');
-    if (b) select(p.variants.find((x) => x.id === (b.dataset.variant || b.dataset.thumb)), true);
+    const view = e.target.closest('[data-view]');
+    if (view) show(view.dataset.view, true);
+    const b = e.target.closest('[data-variant]');
+    if (b) select(p.variants.find((x) => x.id === b.dataset.variant), true);
     if (e.target.closest('[data-inc]')) qty.value = Math.min(+qty.max, (+qty.value || 1) + 1);
     if (e.target.closest('[data-dec]')) qty.value = Math.max(1, (+qty.value || 1) - 1);
   });

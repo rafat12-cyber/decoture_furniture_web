@@ -69,7 +69,7 @@ const call = async (path, { method = 'GET', body, cookie, headers = {}, form } =
 };
 const order = (over = {}) => ({
   name: 'Nusrat Jahan', phone: '01912345678', email: 'nusrat@example.com', district: 'Dhaka', area: 'Banani', address: 'Road 11, House 4',
-  payment: 'Cash on delivery', items: [{ id: 'c-758-black', qty: 1 }], ...over,
+  payment: 'Cash on delivery', items: [{ id: 'c-2301-full-black', qty: 1 }], ...over,
 });
 const stockOf = async (id) => {
   const { data } = await call('/api/catalog');
@@ -85,9 +85,9 @@ const valid = (session, over = {}) => ({ status: 'VALID', tran_id: session.tran_
 
 test('charges delivery by district and number of chairs', async () => {
   const cases = [
-    [{ district: 'Dhaka', items: [{ id: 'c-758-black', qty: 2 }] }, 400, 'dhaka'],
+    [{ district: 'Dhaka', items: [{ id: 'c-2301-full-black', qty: 2 }] }, 400, 'dhaka'],
     [{ district: 'Gazipur' }, 500, 'near'],
-    [{ district: 'Rangpur', items: [{ id: 'c-758-black', qty: 3 }] }, 1200, 'outside'],
+    [{ district: 'Rangpur', items: [{ id: 'c-2301-full-black', qty: 3 }] }, 1200, 'outside'],
   ];
   for (const [over, fee, zone] of cases) {
     const r = await call('/api/orders', { method: 'POST', body: order(over) });
@@ -123,7 +123,7 @@ test('admin changes delivery charges, and checks them', async () => {
 
   const tangail = await call('/api/orders', { method: 'POST', body: order({ district: 'Tangail' }) });
   assert.equal(tangail.data.order.deliveryFee, 500, 'Tangail moved to the near zone');
-  const big = await call('/api/orders', { method: 'POST', body: order({ items: [{ id: 'c-758-black', qty: 6 }] }) });
+  const big = await call('/api/orders', { method: 'POST', body: order({ items: [{ id: 'c-2301-full-black', qty: 6 }] }) });
   assert.equal(big.data.order.deliveryFee, 0, 'free over the threshold');
   assert.match(big.data.order.delivery, /free delivery/);
   // Put the defaults back for the other tests.
@@ -132,7 +132,7 @@ test('admin changes delivery charges, and checks them', async () => {
 });
 
 test('online payment: SSLCommerz confirms it, then the order is paid once', async () => {
-  const r = await call('/api/orders', { method: 'POST', body: order({ payment: 'Online payment', items: [{ id: 'c-758-black', qty: 2 }] }) });
+  const r = await call('/api/orders', { method: 'POST', body: order({ payment: 'Online payment', items: [{ id: 'c-2301-full-black', qty: 2 }] }) });
   assert.equal(r.status, 201);
   const o = r.data.order;
   assert.equal(o.paymentStatus, 'pending');
@@ -172,10 +172,10 @@ test('online payment: SSLCommerz confirms it, then the order is paid once', asyn
 });
 
 test('online payment: a wrong amount is refused; the customer retries or switches to cash', async () => {
-  const before = await stockOf('c-758-black');
+  const before = await stockOf('c-2301-full-black');
   const r = await call('/api/orders', { method: 'POST', body: order({ payment: 'Online payment' }) });
   const o = r.data.order;
-  assert.equal(await stockOf('c-758-black'), before - 1, 'chairs are held while the customer pays');
+  assert.equal(await stockOf('c-2301-full-black'), before - 1, 'chairs are held while the customer pays');
   const session = gw.sessions.at(-1);
   const cheap = valid(session, { amount: '10.00', currency_amount: '10.00', val_id: 'VAL-cheap' });
   gw.validations.set(cheap.val_id, cheap);
@@ -219,38 +219,38 @@ test('online payment: cancel and failure send the customer back to their order',
 
 test('online payment is refused for chairs priced on request', async () => {
   const cookie = await login();
-  await call('/api/admin/variants/c-758-black', { method: 'PATCH', cookie, body: { price: null, salePrice: null } });
+  await call('/api/admin/variants/c-2301-full-black', { method: 'PATCH', cookie, body: { price: null, salePrice: null } });
   const r = await call('/api/orders', { method: 'POST', body: order({ payment: 'Online payment' }) });
   assert.equal(r.status, 400);
   assert.match(r.data.error, /priced on request/);
-  await call('/api/admin/variants/c-758-black', { method: 'PATCH', cookie, body: { price: 8900 } });
+  await call('/api/admin/variants/c-2301-full-black', { method: 'PATCH', cookie, body: { price: 9000 } });
 });
 
 test('unpaid online orders are cancelled after a day and the chairs return', async () => {
-  const before = await stockOf('c-758-black');
-  const r = await call('/api/orders', { method: 'POST', body: order({ payment: 'Online payment', items: [{ id: 'c-758-black', qty: 2 }] }) });
-  assert.equal(await stockOf('c-758-black'), before - 2);
+  const before = await stockOf('c-2301-full-black');
+  const r = await call('/api/orders', { method: 'POST', body: order({ payment: 'Online payment', items: [{ id: 'c-2301-full-black', qty: 2 }] }) });
+  assert.equal(await stockOf('c-2301-full-black'), before - 2);
   assert.deepEqual(db.expireUnpaid(24), [], 'not yet');
   db.raw.prepare('UPDATE orders SET updated_at = ? WHERE id = ?').run(new Date(Date.now() - 25 * 3600000).toISOString(), r.data.order.id);
   assert.deepEqual(db.expireUnpaid(24), [r.data.order.id]);
   assert.equal(db.order(r.data.order.id).status, 'cancelled');
-  assert.equal(await stockOf('c-758-black'), before);
+  assert.equal(await stockOf('c-2301-full-black'), before);
 });
 
 test('pages carry search and sharing tags; robots and sitemap', async () => {
   const p = await call('/product.html?m=6801a');
-  assert.match(p.data, /<title>6801A Executive chair · Decoture<\/title>/);
+  assert.match(p.data, /<title>Monarch 6801A Executive chair · DECOTURE – A brand of Sigma Synchrony<\/title>/);
   assert.match(p.data, /<link rel="canonical" href="https:\/\/decoture\.example\/product\.html\?m=6801a">/);
   assert.match(p.data, /<meta property="og:image" content="https:\/\/decoture\.example\/assets\/img\/products\//);
   const ld = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/.exec(p.data)[1]);
   assert.equal(ld['@type'], 'Product');
   assert.equal(ld.offers.priceCurrency, 'BDT');
-  assert.equal(ld.offers.lowPrice, 8900);
+  assert.equal(ld.offers.lowPrice, 37500);
   const home = await call('/');
   assert.match(home.data, /"@type":"FurnitureStore"/);
   assert.match(home.data, /rel="canonical" href="https:\/\/decoture\.example\/"/);
   const shop = await call('/shop.html?collection=task');
-  assert.match(shop.data, /<title>Task &amp; office chairs · Decoture<\/title>/);
+  assert.match(shop.data, /<title>Task &amp; office chairs · DECOTURE – A brand of Sigma Synchrony<\/title>/);
   assert.match((await call('/checkout.html')).data, /<meta name="robots" content="noindex">/);
   const missing = await call('/product.html?m=<script>');
   assert.doesNotMatch(missing.data, /<script>"/);
@@ -259,6 +259,6 @@ test('pages carry search and sharing tags; robots and sitemap', async () => {
   assert.match(robots.data, /Sitemap: https:\/\/decoture\.example\/sitemap\.xml/);
   const map = await call('/sitemap.xml');
   assert.match(map.headers.get('content-type'), /xml/);
-  assert.equal((map.data.match(/<loc>/g) || []).length, 5 + 4 + 56);
+  assert.equal((map.data.match(/<loc>/g) || []).length, 5 + 5 + 52);
   assert.match(map.data, /product\.html\?m=6801a/);
 });
