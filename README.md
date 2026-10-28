@@ -147,7 +147,7 @@ Products come from `data/stock.csv`, one row per colourway:
 | Column | Meaning |
 |---|---|
 | `sl`, `code` | Row number and Decoture product code from the price list |
-| `model`, `colour` | Rows with the same model become one product with colour options |
+| `model`, `colour` | Rows with the same model become one product with colour options. The site shows the model with its name from `NAMES` in `lib/catalog.mjs`, e.g. "Monarch 6801A"; a new model without a name shows its number alone |
 | `collection` | `executive`, `ergonomic`, `task`, `conference` or `training`; each is a category in the Shop menu |
 | `stock` | Units in the warehouse. 10 or fewer shows "Only N left"; 0 shows "Out of stock" |
 | `warranty_years` | 2 for most chairs, 1 for CDS conference chairs |

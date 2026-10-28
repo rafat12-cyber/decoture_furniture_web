@@ -6,7 +6,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { buildCatalog, parseCsv, slug, swatchFor } from '../lib/catalog.mjs';
+import { buildCatalog, displayName, parseCsv, slug, swatchFor } from '../lib/catalog.mjs';
 
 export const ORDER_STATUSES = ['new', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 export const QUOTE_STATUSES = ['new', 'contacted', 'closed'];
@@ -249,7 +249,7 @@ function wrap(db) {
           const v = q.variant.get(id);
           if (!v || !v.active) throw new HttpError(409, 'A chair in your cart is no longer available.', { variant: id, available: 0 });
           if (v.stock < qty) {
-            throw new HttpError(409, v.stock > 0 ? `Only ${v.stock} of ${v.model} ${v.colour} left.` : `${v.model} ${v.colour} is out of stock.`, { variant: id, available: Math.max(0, v.stock) });
+            throw new HttpError(409, v.stock > 0 ? `Only ${v.stock} of ${displayName(v.model)} ${v.colour} left.` : `${displayName(v.model)} ${v.colour} is out of stock.`, { variant: id, available: Math.max(0, v.stock) });
           }
           lines.push({ v, qty });
         }
@@ -272,7 +272,7 @@ function wrap(db) {
         const addItem = db.prepare('INSERT INTO order_items (order_id, variant_id, sku, qty, price, image) VALUES (?, ?, ?, ?, ?, ?)');
         const take = db.prepare('UPDATE variants SET stock = stock - ?, updated_at = ? WHERE id = ?');
         for (const { v, qty } of lines) {
-          addItem.run(id, v.id, `${v.model} ${v.colour}`, qty, unitPrice(v), v.image ? (v.image.includes('/') ? v.image : `assets/img/products/${v.image}`) : null);
+          addItem.run(id, v.id, `${displayName(v.model)} ${v.colour}`, qty, unitPrice(v), v.image ? (v.image.includes('/') ? v.image : `assets/img/products/${v.image}`) : null);
           take.run(qty, t, v.id);
         }
         db.prepare('INSERT INTO order_events (order_id, at, status, note) VALUES (?, ?, ?, ?)').run(id, t, 'new', 'Order placed on the website');

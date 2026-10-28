@@ -239,7 +239,7 @@ test('unpaid online orders are cancelled after a day and the chairs return', asy
 
 test('pages carry search and sharing tags; robots and sitemap', async () => {
   const p = await call('/product.html?m=6801a');
-  assert.match(p.data, /<title>6801A Executive chair · DECOTURE – A brand of Sigma Synchrony<\/title>/);
+  assert.match(p.data, /<title>Monarch 6801A Executive chair · DECOTURE – A brand of Sigma Synchrony<\/title>/);
   assert.match(p.data, /<link rel="canonical" href="https:\/\/decoture\.example\/product\.html\?m=6801a">/);
   assert.match(p.data, /<meta property="og:image" content="https:\/\/decoture\.example\/assets\/img\/products\//);
   const ld = JSON.parse(/<script type="application\/ld\+json">(.*?)<\/script>/.exec(p.data)[1]);

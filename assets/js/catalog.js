@@ -48,8 +48,8 @@ window.DECOTURE_CATALOG = {
      "sl": 1
     }
    ],
-   "name": "6801A",
-   "description": "6801A is a high-back upholstered executive chair with imported fittings throughout."
+   "name": "Monarch 6801A",
+   "description": "Monarch 6801A is a high-back upholstered executive chair with imported fittings throughout."
   },
   {
    "slug": "6801b",
@@ -75,8 +75,8 @@ window.DECOTURE_CATALOG = {
      "sl": 2
     }
    ],
-   "name": "6801B",
-   "description": "6801B is a high-back upholstered executive chair with imported fittings throughout."
+   "name": "Monarch 6801B",
+   "description": "Monarch 6801B is a high-back upholstered executive chair with imported fittings throughout."
   },
   {
    "slug": "6856a",
@@ -116,8 +116,8 @@ window.DECOTURE_CATALOG = {
      "sl": 4
     }
    ],
-   "name": "6856A",
-   "description": "6856A is a high-back upholstered executive chair with imported fittings throughout."
+   "name": "Sovereign 6856A",
+   "description": "Sovereign 6856A is a high-back upholstered executive chair with imported fittings throughout."
   },
   {
    "slug": "6838a",
@@ -159,8 +159,8 @@ window.DECOTURE_CATALOG = {
      "sl": 6
     }
    ],
-   "name": "6838A",
-   "description": "6838A is a high-back upholstered executive chair with imported fittings throughout."
+   "name": "Regent 6838A",
+   "description": "Regent 6838A is a high-back upholstered executive chair with imported fittings throughout."
   },
   {
    "slug": "6859a",
@@ -204,8 +204,8 @@ window.DECOTURE_CATALOG = {
      "sl": 8
     }
    ],
-   "name": "6859A",
-   "description": "6859A is a high-back upholstered executive chair with imported fittings throughout."
+   "name": "Chancellor 6859A",
+   "description": "Chancellor 6859A is a high-back upholstered executive chair with imported fittings throughout."
   },
   {
    "slug": "6832a",
@@ -251,8 +251,8 @@ window.DECOTURE_CATALOG = {
      "sl": 10
     }
    ],
-   "name": "6832A",
-   "description": "6832A is a high-back upholstered executive chair with imported fittings throughout."
+   "name": "Ambassador 6832A",
+   "description": "Ambassador 6832A is a high-back upholstered executive chair with imported fittings throughout."
   },
   {
    "slug": "6833a",
@@ -298,8 +298,8 @@ window.DECOTURE_CATALOG = {
      "sl": 12
     }
    ],
-   "name": "6833A",
-   "description": "6833A is a high-back upholstered executive chair with imported fittings throughout."
+   "name": "Senator 6833A",
+   "description": "Senator 6833A is a high-back upholstered executive chair with imported fittings throughout."
   },
   {
    "slug": "6837a",
@@ -344,8 +344,8 @@ window.DECOTURE_CATALOG = {
      "sl": 14
     }
    ],
-   "name": "6837A",
-   "description": "6837A is a high-back upholstered executive chair with imported fittings throughout."
+   "name": "Baron 6837A",
+   "description": "Baron 6837A is a high-back upholstered executive chair with imported fittings throughout."
   },
   {
    "slug": "6995a",
@@ -385,8 +385,8 @@ window.DECOTURE_CATALOG = {
      "sl": 16
     }
    ],
-   "name": "6995A",
-   "description": "6995A is a high-back upholstered executive chair with imported fittings throughout."
+   "name": "Marquis 6995A",
+   "description": "Marquis 6995A is a high-back upholstered executive chair with imported fittings throughout."
   },
   {
    "slug": "gmc-5d",
@@ -433,8 +433,8 @@ window.DECOTURE_CATALOG = {
      "sl": 18
     }
    ],
-   "name": "GMC-5D",
-   "description": "GMC-5D is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Apex GMC-5D",
+   "description": "Apex GMC-5D is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "a15",
@@ -474,8 +474,8 @@ window.DECOTURE_CATALOG = {
      "sl": 20
     }
    ],
-   "name": "A15",
-   "description": "A15 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Zenith A15",
+   "description": "Zenith A15 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "a12",
@@ -532,8 +532,8 @@ window.DECOTURE_CATALOG = {
      "sl": 23
     }
    ],
-   "name": "A12",
-   "description": "A12 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Orion A12",
+   "description": "Orion A12 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "a676",
@@ -558,8 +558,8 @@ window.DECOTURE_CATALOG = {
      "sl": 24
     }
    ],
-   "name": "A676",
-   "description": "A676 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Vector A676",
+   "description": "Vector A676 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "a22",
@@ -599,8 +599,8 @@ window.DECOTURE_CATALOG = {
      "sl": 26
     }
    ],
-   "name": "A22",
-   "description": "A22 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Atlas A22",
+   "description": "Atlas A22 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "a21",
@@ -640,8 +640,8 @@ window.DECOTURE_CATALOG = {
      "sl": 28
     }
    ],
-   "name": "A21",
-   "description": "A21 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Aria A21",
+   "description": "Aria A21 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "a31",
@@ -694,8 +694,8 @@ window.DECOTURE_CATALOG = {
      "sl": 30
     }
    ],
-   "name": "A31",
-   "description": "A31 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Nova A31",
+   "description": "Nova A31 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "a821",
@@ -720,8 +720,8 @@ window.DECOTURE_CATALOG = {
      "sl": 31
     }
    ],
-   "name": "A821",
-   "description": "A821 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Luna A821",
+   "description": "Luna A821 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "b821",
@@ -746,8 +746,8 @@ window.DECOTURE_CATALOG = {
      "sl": 32
     }
    ],
-   "name": "B821",
-   "description": "B821 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Luna B821",
+   "description": "Luna B821 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "a3903-1",
@@ -819,8 +819,8 @@ window.DECOTURE_CATALOG = {
      "sl": 38
     }
    ],
-   "name": "A3903-1",
-   "description": "A3903-1 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Vela A3903-1",
+   "description": "Vela A3903-1 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "b3903-1",
@@ -875,8 +875,8 @@ window.DECOTURE_CATALOG = {
      "sl": 39
     }
    ],
-   "name": "B3903-1",
-   "description": "B3903-1 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Vela B3903-1",
+   "description": "Vela B3903-1 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "a03",
@@ -903,8 +903,8 @@ window.DECOTURE_CATALOG = {
      "sl": 40
     }
    ],
-   "name": "A03",
-   "description": "A03 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Flex A03",
+   "description": "Flex A03 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "b03",
@@ -929,8 +929,8 @@ window.DECOTURE_CATALOG = {
      "sl": 41
     }
    ],
-   "name": "B03",
-   "description": "B03 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Flex B03",
+   "description": "Flex B03 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "a10",
@@ -972,8 +972,8 @@ window.DECOTURE_CATALOG = {
      "sl": 44
     }
    ],
-   "name": "A10",
-   "description": "A10 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Sola A10",
+   "description": "Sola A10 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "b10",
@@ -1014,8 +1014,8 @@ window.DECOTURE_CATALOG = {
      "sl": 45
     }
    ],
-   "name": "B10",
-   "description": "B10 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Sola B10",
+   "description": "Sola B10 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "a7901",
@@ -1058,8 +1058,8 @@ window.DECOTURE_CATALOG = {
      "sl": 47
     }
    ],
-   "name": "A7901",
-   "description": "A7901 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Helix A7901",
+   "description": "Helix A7901 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "c-2013t",
@@ -1086,8 +1086,8 @@ window.DECOTURE_CATALOG = {
      "sl": 48
     }
    ],
-   "name": "C-2013T",
-   "description": "C-2013T is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Metro C-2013T",
+   "description": "Metro C-2013T is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-2013",
@@ -1112,8 +1112,8 @@ window.DECOTURE_CATALOG = {
      "sl": 49
     }
    ],
-   "name": "C-2013",
-   "description": "C-2013 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Metro C-2013",
+   "description": "Metro C-2013 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-108",
@@ -1138,8 +1138,8 @@ window.DECOTURE_CATALOG = {
      "sl": 50
     }
    ],
-   "name": "C-108",
-   "description": "C-108 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Civic C-108",
+   "description": "Civic C-108 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "a3905",
@@ -1164,8 +1164,8 @@ window.DECOTURE_CATALOG = {
      "sl": 51
     }
    ],
-   "name": "A3905",
-   "description": "A3905 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Arc A3905",
+   "description": "Arc A3905 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "c-805",
@@ -1190,8 +1190,8 @@ window.DECOTURE_CATALOG = {
      "sl": 52
     }
    ],
-   "name": "C-805",
-   "description": "C-805 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Pace C-805",
+   "description": "Pace C-805 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "a7905",
@@ -1231,8 +1231,8 @@ window.DECOTURE_CATALOG = {
      "sl": 54
     }
    ],
-   "name": "A7905",
-   "description": "A7905 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Strata A7905",
+   "description": "Strata A7905 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "b7905",
@@ -1257,8 +1257,8 @@ window.DECOTURE_CATALOG = {
      "sl": 55
     }
    ],
-   "name": "B7905",
-   "description": "B7905 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Strata B7905",
+   "description": "Strata B7905 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "a01",
@@ -1283,8 +1283,8 @@ window.DECOTURE_CATALOG = {
      "sl": 56
     }
    ],
-   "name": "A01",
-   "description": "A01 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Prime A01",
+   "description": "Prime A01 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "cds-155-l",
@@ -1326,8 +1326,8 @@ window.DECOTURE_CATALOG = {
      "sl": 58
     }
    ],
-   "name": "CDS-155 L",
-   "description": "CDS-155 L is a conference and visitor chair for boardrooms, meeting rooms and reception areas."
+   "name": "Belmont CDS-155 L",
+   "description": "Belmont CDS-155 L is a conference and visitor chair for boardrooms, meeting rooms and reception areas."
   },
   {
    "slug": "cds-155-m",
@@ -1369,8 +1369,8 @@ window.DECOTURE_CATALOG = {
      "sl": 60
     }
    ],
-   "name": "CDS-155 M",
-   "description": "CDS-155 M is a conference and visitor chair for boardrooms, meeting rooms and reception areas."
+   "name": "Belmont CDS-155 M",
+   "description": "Belmont CDS-155 M is a conference and visitor chair for boardrooms, meeting rooms and reception areas."
   },
   {
    "slug": "a3004",
@@ -1395,8 +1395,8 @@ window.DECOTURE_CATALOG = {
      "sl": 61
     }
    ],
-   "name": "A3004",
-   "description": "A3004 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
+   "name": "Linea A3004",
+   "description": "Linea A3004 is an ergonomic high-back chair built for long working days, with imported fittings throughout."
   },
   {
    "slug": "b3004",
@@ -1421,8 +1421,8 @@ window.DECOTURE_CATALOG = {
      "sl": 62
     }
    ],
-   "name": "B3004",
-   "description": "B3004 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Linea B3004",
+   "description": "Linea B3004 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-337",
@@ -1447,8 +1447,8 @@ window.DECOTURE_CATALOG = {
      "sl": 63
     }
    ],
-   "name": "C-337",
-   "description": "C-337 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Ellis C-337",
+   "description": "Ellis C-337 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-277",
@@ -1473,8 +1473,8 @@ window.DECOTURE_CATALOG = {
      "sl": 64
     }
    ],
-   "name": "C-277",
-   "description": "C-277 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Hart C-277",
+   "description": "Hart C-277 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-699",
@@ -1499,8 +1499,8 @@ window.DECOTURE_CATALOG = {
      "sl": 65
     }
    ],
-   "name": "C-699",
-   "description": "C-699 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Quinn C-699",
+   "description": "Quinn C-699 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-2311",
@@ -1540,8 +1540,8 @@ window.DECOTURE_CATALOG = {
      "sl": 67
     }
    ],
-   "name": "C-2311",
-   "description": "C-2311 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Brio C-2311",
+   "description": "Brio C-2311 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-2301",
@@ -1581,8 +1581,8 @@ window.DECOTURE_CATALOG = {
      "sl": 69
     }
    ],
-   "name": "C-2301",
-   "description": "C-2301 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Nimbus C-2301",
+   "description": "Nimbus C-2301 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-286",
@@ -1607,8 +1607,8 @@ window.DECOTURE_CATALOG = {
      "sl": 70
     }
    ],
-   "name": "C-286",
-   "description": "C-286 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Rowan C-286",
+   "description": "Rowan C-286 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-758",
@@ -1648,8 +1648,8 @@ window.DECOTURE_CATALOG = {
      "sl": 72
     }
    ],
-   "name": "C-758",
-   "description": "C-758 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Sterling C-758",
+   "description": "Sterling C-758 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-687",
@@ -1689,8 +1689,8 @@ window.DECOTURE_CATALOG = {
      "sl": 74
     }
    ],
-   "name": "C-687",
-   "description": "C-687 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Kent C-687",
+   "description": "Kent C-687 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-622",
@@ -1730,8 +1730,8 @@ window.DECOTURE_CATALOG = {
      "sl": 76
     }
    ],
-   "name": "C-622",
-   "description": "C-622 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Mason C-622",
+   "description": "Mason C-622 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "c-323",
@@ -1756,8 +1756,8 @@ window.DECOTURE_CATALOG = {
      "sl": 77
     }
    ],
-   "name": "C-323",
-   "description": "C-323 is a mesh task chair for workstations and teams, with imported fittings throughout."
+   "name": "Ivy C-323",
+   "description": "Ivy C-323 is a mesh task chair for workstations and teams, with imported fittings throughout."
   },
   {
    "slug": "cfv-152-r",
@@ -1784,8 +1784,8 @@ window.DECOTURE_CATALOG = {
      "sl": 78
     }
    ],
-   "name": "CFV-152 R",
-   "description": "CFV-152 R is a conference and visitor chair for boardrooms, meeting rooms and reception areas."
+   "name": "Windsor CFV-152 R",
+   "description": "Windsor CFV-152 R is a conference and visitor chair for boardrooms, meeting rooms and reception areas."
   },
   {
    "slug": "d113",
@@ -1812,8 +1812,8 @@ window.DECOTURE_CATALOG = {
      "sl": 79
     }
    ],
-   "name": "D113",
-   "description": "D113 is a training chair for classrooms, seminar and training rooms."
+   "name": "Scholar D113",
+   "description": "Scholar D113 is a training chair for classrooms, seminar and training rooms."
   },
   {
    "slug": "fcr-109",
@@ -1840,8 +1840,8 @@ window.DECOTURE_CATALOG = {
      "sl": 80
     }
    ],
-   "name": "FCR-109",
-   "description": "FCR-109 is a training chair for classrooms, seminar and training rooms."
+   "name": "Campus FCR-109",
+   "description": "Campus FCR-109 is a training chair for classrooms, seminar and training rooms."
   },
   {
    "slug": "fcr-110",
@@ -1866,8 +1866,8 @@ window.DECOTURE_CATALOG = {
      "sl": 81
     }
    ],
-   "name": "FCR-110",
-   "description": "FCR-110 is a training chair for classrooms, seminar and training rooms."
+   "name": "Forum FCR-110",
+   "description": "Forum FCR-110 is a training chair for classrooms, seminar and training rooms."
   },
   {
    "slug": "fcr-111",
@@ -1894,8 +1894,8 @@ window.DECOTURE_CATALOG = {
      "sl": 82
     }
    ],
-   "name": "FCR-111",
-   "description": "FCR-111 is a training chair for classrooms, seminar and training rooms."
+   "name": "Lyceum FCR-111",
+   "description": "Lyceum FCR-111 is a training chair for classrooms, seminar and training rooms."
   }
  ],
  "delivery": {

@@ -61,7 +61,7 @@
       stock: (a, b) => D.productStock(b) - D.productStock(a),
       'price-asc': (a, b) => price(a) - price(b),
       'price-desc': (a, b) => (D.productFromPrice(b) ?? -1) - (D.productFromPrice(a) ?? -1),
-      name: (a, b) => a.model.localeCompare(b.model, 'en', { numeric: true }),
+      name: (a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }),
     };
     list = [...list].sort(sorters[state.sort] || sorters.featured);
 

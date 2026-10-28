@@ -116,7 +116,7 @@ test('places an order with server prices and holds the stock', async () => {
   assert.equal(await stockOf('6801a-silver'), before - 2);
   const mail = await waitFor(() => mails.find((m) => m.includes('Subject: New order')));
   assert.ok(mail, 'the shop is emailed');
-  assert.match(Buffer.from(mail.split('\n\n')[1].replace(/\s/g, ''), 'base64').toString(), /2 x 6801A Silver @ Tk 37,500/);
+  assert.match(Buffer.from(mail.split('\n\n')[1].replace(/\s/g, ''), 'base64').toString(), /2 x Monarch 6801A Silver @ Tk 37,500/);
 });
 
 test('refuses to sell more than is in stock', async () => {
